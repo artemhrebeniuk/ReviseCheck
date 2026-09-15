@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Gabarito", "Hanken Grotesk", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+:root {
+  --background: #f9fafb; /* Soft off-white */
+  --surface: #ffffff;
+  --surface-muted: #f3f4f6;
+  --foreground: #111827;
+  --foreground-muted: #4b5563;
+  --border-subtle: #e5e7eb;
+  --border-active: #d1d5db;
+
+  /* Signature Abhay Singh x Appsmith Palette Tokens */
+  --as-red: #e21022;
+  --as-rust: #b43d1a;
+  --as-mint: #a1f4dd;
+  --as-olive: #86a357;
+  --as-navy: #393459;
+  --as-mauve: #d19ea7;
+  
+  --as-indigo: #5538EE; /* Vibrant Appsmith blue/indigo */
+  --as-yellow: #FEF3C7; /* Tag background */
+  --as-yellow-text: #92400E;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  letter-spacing: -0.012em;
+  
+  /* Abhay Singh Dot Matrix Pattern */
+  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Clean White Card Elevated */
+.case-study-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+}
+
+/* Tactile micro-transitions conforming to design specs */
+.tactile-btn {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), 
+              background-color 160ms cubic-bezier(0.23, 1, 0.32, 1), 
+              border-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tactile-btn:active {
+  transform: scale(0.98);
+}
