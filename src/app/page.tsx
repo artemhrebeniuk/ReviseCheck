@@ -71,10 +71,16 @@ export default function Home() {
     setActiveDiff(null);
 
     try {
+      const storedApiKey = typeof window !== "undefined" ? localStorage.getItem("revisecheck_together_key") || undefined : undefined;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (storedApiKey) {
+        headers["x-together-key"] = storedApiKey;
+      }
+
       const res = await fetch("/api/compare", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preset }),
+        headers,
+        body: JSON.stringify({ preset, togetherApiKey: storedApiKey }),
       });
       if (!res.ok) throw new Error("Failed to generate audit report");
       const data = await res.json();
@@ -111,12 +117,22 @@ export default function Home() {
       setOriginalPdfUrl(url1);
       setRevisedPdfUrl(url2);
 
+      const storedApiKey = typeof window !== "undefined" ? localStorage.getItem("revisecheck_together_key") || undefined : undefined;
       const formData = new FormData();
       formData.append("fileOriginal", file1);
       formData.append("fileRevised", file2);
+      if (storedApiKey) {
+        formData.append("togetherApiKey", storedApiKey);
+      }
+
+      const headers: Record<string, string> = {};
+      if (storedApiKey) {
+        headers["x-together-key"] = storedApiKey;
+      }
 
       const res = await fetch("/api/compare", {
         method: "POST",
+        headers,
         body: formData,
       });
 
@@ -161,35 +177,72 @@ export default function Home() {
     }
   }, []);
 
+  const handleApplyClarifications = (resolvedMap: Record<number, string>) => {
+    if (!report) return;
+    const answeredCount = Object.keys(resolvedMap).length;
+    if (answeredCount === 0) return;
+
+    const updatedDiffs = report.diffs.map((d) => {
+      if (d.category === "AUDIT_RISK" && !d.isConfirmed) {
+        return { ...d, isConfirmed: true, severity: "INFO" as const };
+      }
+      return d;
+    });
+
+    const updatedReport: AuditReport = {
+      ...report,
+      verdict: "APPROVE",
+      verdictTitle: "REVIEW & APPROVE: Clarifications Resolved by Executive",
+      summary: `All ${answeredCount} contract inquiries and ambiguities have been explicitly resolved and authorized by the executive signatory. Commercial terms approved.`,
+      uncertainMatchesCount: 0,
+      diffs: updatedDiffs,
+      keyRisks: report.keyRisks.filter(
+        (r) => !r.toLowerCase().includes("currency") && !r.toLowerCase().includes("uncommitted")
+      ),
+      clarificationQuestions: undefined,
+    };
+
+    setReport(updatedReport);
+    clientCacheRef.current.set(currentPreset, updatedReport);
+  };
+
   return (
-    <div className="min-h-screen text-gray-900 flex flex-col font-sans">
+    <div className="min-h-screen text-gray-900 flex flex-col font-sans overflow-x-hidden w-full max-w-full">
       <Header telemetry={report?.telemetry} />
 
-      <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 lg:px-12 pt-24 lg:pt-32">
+      <main className="flex-1 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-16">
         
-        <div className="flex flex-col xl:flex-row gap-12 lg:gap-16 items-start">
+        <div className="flex flex-col xl:flex-row gap-8 lg:gap-12 items-start">
           
-          {/* LEFT COLUMN: Clean Minimalist Controls */}
-          <aside className="w-full xl:w-95 shrink-0 space-y-10 sticky top-32">
-            
+          {/* LEFT COLUMN: Grounded Command & Audit Controls Panel */}
+          <aside className="w-full xl:w-102.5 shrink-0 xl:sticky xl:top-20">
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="bg-white border border-gray-200/90 rounded-2xl p-5 sm:p-6 shadow-sm space-y-5"
             >
-              <h1 className="text-3xl font-semibold tracking-tight text-gray-900 mb-3">
-                Proposal Audit
-              </h1>
-              <p className="text-sm text-gray-500 leading-relaxed max-w-md">
-                Automated differential auditor. Upload the original and revised commercial offers to instantly reveal substantive changes to scope, pricing, and schedules.
-              </p>
-            </motion.div>
+              {/* Proposal Audit Header */}
+              <div className="border-b border-gray-100 pb-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] font-bold tracking-wider uppercase text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                    Control Rail
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-full">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Engine Ready</span>
+                  </span>
+                </div>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-            >
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900 font-display">
+                  Proposal Audit
+                </h1>
+                <p className="text-xs text-gray-500 leading-relaxed font-normal">
+                  Automated differential auditor. Upload original &amp; revised commercial offers to instantly reveal substantive scope, pricing, and schedules.
+                </p>
+              </div>
+
+              {/* Preset Selector & Custom Upload */}
               <PresetSelector
                 currentPreset={currentPreset}
                 isLoading={isLoading}
@@ -197,7 +250,6 @@ export default function Home() {
                 onUploadCustom={handleCustomUpload}
               />
             </motion.div>
-
           </aside>
 
           {/* RIGHT COLUMN: Minimalist Workspace Viewport */}
@@ -274,6 +326,7 @@ export default function Home() {
         onResolveQuestion={(idx, ans) => {
           console.log(`Question ${idx} answered: ${ans}`);
         }}
+        onApplyClarifications={handleApplyClarifications}
       />
     </div>
   );

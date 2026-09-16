@@ -120,7 +120,7 @@ function buildReportFromMatching(
         type: "RENAMED_ITEM",
         severity: "INFO",
         category: "SCOPE",
-        title: `Nomenclature / Item Renamed: "${o.name}" ➔ "${r.name}"`,
+        title: `Nomenclature / Item Renamed: "${o.name}" -> "${r.name}"`,
         description: `Correlated via ${pair.matchReason} (Confidence: ${Math.round(
           pair.confidence * 100
         )}%). Scope corresponds to same underlying deliverable.`,

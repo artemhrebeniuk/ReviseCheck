@@ -8,6 +8,7 @@ interface ClarificationModalProps {
   questions: string[];
   onClose: () => void;
   onResolveQuestion: (index: number, answer: string) => void;
+  onApplyClarifications?: (resolved: Record<number, string>) => void;
 }
 
 export function ClarificationModal({
@@ -15,6 +16,7 @@ export function ClarificationModal({
   questions,
   onClose,
   onResolveQuestion,
+  onApplyClarifications,
 }: ClarificationModalProps) {
   const [resolved, setResolved] = useState<Record<number, string>>({});
 
@@ -37,7 +39,7 @@ export function ClarificationModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                <span className="font-mono text-xs uppercase tracking-wider text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                   Human-In-The-Loop Guard
                 </span>
               </div>
@@ -55,7 +57,7 @@ export function ClarificationModal({
           </button>
         </div>
 
-        <p className="text-xs text-gray-600 leading-relaxed font-sans">
+        <p className="text-sm text-gray-600 leading-relaxed font-sans">
           The deterministic engine declined to issue an automatic conclusion due to unresolvable contract ambiguities (e.g. currency conflict, uncommitted delivery schedule). Please clarify below:
         </p>
 
@@ -67,13 +69,13 @@ export function ClarificationModal({
               className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 space-y-2.5 text-xs"
             >
               <div className="flex items-start gap-2.5">
-                <div className="p-1 rounded-md bg-amber-100 text-amber-700 shrink-0 mt-0.5">
-                  <HelpCircle className="h-3.5 w-3.5" />
+                <div className="p-1.5 rounded-md bg-amber-100 text-amber-700 shrink-0 mt-0.5">
+                  <HelpCircle className="h-4 w-4" />
                 </div>
-                <span className="text-gray-800 font-medium leading-relaxed">{q}</span>
+                <span className="text-gray-900 font-medium text-sm leading-relaxed">{q}</span>
               </div>
 
-              <div className="flex items-center gap-2 pt-1 pl-6">
+              <div className="flex items-center gap-2 pt-1 pl-7">
                 <button
                   onClick={() => handleSelect(idx, "CONFIRMED")}
                   className={`tactile-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
@@ -104,11 +106,16 @@ export function ClarificationModal({
 
         {/* Footer */}
         <div className="pt-2 flex items-center justify-between border-t border-gray-100">
-          <span className="text-[11px] font-mono text-gray-500">
+          <span className="text-xs font-mono text-gray-500">
             {Object.keys(resolved).length} of {questions.length} inquiries resolved
           </span>
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (onApplyClarifications) {
+                onApplyClarifications(resolved);
+              }
+              onClose();
+            }}
             className="tactile-btn px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold text-xs cursor-pointer"
           >
             Apply Clarifications

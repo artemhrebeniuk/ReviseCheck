@@ -73,7 +73,7 @@ async function runBenchmarks() {
   const renamedDiff = reportV1.diffs.find((d) => d.type === "RENAMED_ITEM");
   assert(
     Boolean(renamedDiff && renamedDiff.originalValue?.toString().includes("Dell PowerEdge")),
-    "Case 1.3: Renamed item detected ('Dell PowerEdge R750' ➔ 'Enterprise Rack Server PE-R750')"
+    "Case 1.3: Renamed item detected ('Dell PowerEdge R750' -> 'Enterprise Rack Server PE-R750')"
   );
 
   // Assert 1.4: Cross-page row reordering detected
@@ -89,7 +89,7 @@ async function runBenchmarks() {
   );
   assert(
     Boolean(qtyDiff && qtyDiff.originalValue === 50 && qtyDiff.revisedValue === 100),
-    "Case 1.5: Quantity change detected on Cat6 Cables (50 ➔ 100)"
+    "Case 1.5: Quantity change detected on Cat6 Cables (50 -> 100)"
   );
 
   // Assert 1.6: Unit price change detected
@@ -98,7 +98,7 @@ async function runBenchmarks() {
   );
   assert(
     Boolean(priceDiff && priceDiff.delta?.toString().includes("30")),
-    "Case 1.6: Unit price change detected on 27' Monitor ($250 ➔ $280)"
+    "Case 1.6: Unit price change detected on 27' Monitor ($250 -> $280)"
   );
 
   // Assert 1.7: Removed item detected
@@ -114,7 +114,7 @@ async function runBenchmarks() {
   const dateDiff = reportV1.diffs.find((d) => d.type === "DATE_CHANGE");
   assert(
     Boolean(dateDiff && dateDiff.revisedValue?.toString().includes("November 05")),
-    "Case 1.8: Delivery date postponement detected (Oct 15 ➔ Nov 05, 2026)"
+    "Case 1.8: Delivery date postponement detected (Oct 15 -> Nov 05, 2026)"
   );
 
   // Assert 1.9: Intentionally incorrect arithmetic total detected
@@ -229,7 +229,7 @@ async function runBenchmarks() {
   );
   assert(
     reportP3.diffs.some((d) => d.type === "DATE_CHANGE"),
-    "Case 5.4: Multi-page delivery date postponement detected (Nov 15 ➔ Dec 20, 2026)"
+    "Case 5.4: Multi-page delivery date postponement detected (Nov 15 -> Dec 20, 2026)"
   );
   assert(
     reportP3.diffs.some((d) => d.type === "SCOPE_REMOVED"),
@@ -255,11 +255,11 @@ async function runBenchmarks() {
   );
   assert(
     reportCloud.diffs.some((d) => d.type === "RENAMED_ITEM" && (d.title.includes("Graviton") || d.description.includes("EC2"))),
-    "Case 6.2: Compute architecture upgrade detected (EC2 m5.2xlarge ➔ Graviton3 c7g.2xlarge)"
+    "Case 6.2: Compute architecture upgrade detected (EC2 m5.2xlarge -> Graviton3 c7g.2xlarge)"
   );
   assert(
     reportCloud.diffs.some((d) => d.type === "QTY_CHANGE" && d.title.includes("S3")),
-    "Case 6.3: Cloud storage expansion detected on S3 Intelligent-Tiering (50TB ➔ 80TB)"
+    "Case 6.3: Cloud storage expansion detected on S3 Intelligent-Tiering (50TB -> 80TB)"
   );
   assert(
     reportCloud.diffs.some((d) => d.type === "SCOPE_REMOVED" && d.title.includes("NAT Gateway")),
@@ -267,7 +267,7 @@ async function runBenchmarks() {
   );
   assert(
     reportCloud.diffs.some((d) => d.type === "DATE_CHANGE"),
-    "Case 6.5: Cloud migration delivery date postponement detected (Nov 20 ➔ Dec 15, 2026)"
+    "Case 6.5: Cloud migration delivery date postponement detected (Nov 20 -> Dec 15, 2026)"
   );
 
   // TEST SUITE 7: Severe Arithmetic Inflation & Tax Inconsistency
@@ -308,19 +308,19 @@ async function runBenchmarks() {
 
   assert(
     reportAero.diffs.some((d) => d.type === "DATE_CHANGE" && d.revisedValue?.toString().includes("2027")),
-    "Case 8.1: Postponed single-batch milestone delivery detected (Dec 20, 2026 ➔ Feb 28, 2027)"
+    "Case 8.1: Postponed single-batch milestone delivery detected (Dec 20, 2026 -> Feb 28, 2027)"
   );
   assert(
     reportAero.diffs.some((d) => d.type === "RENAMED_ITEM" && d.title.includes("1553")),
-    "Case 8.2: Avionics specification rename detected ('MIL-STD-1553' ➔ 'Airborne Bus Transceiver Interface 1553')"
+    "Case 8.2: Avionics specification rename detected ('MIL-STD-1553' -> 'Airborne Bus Transceiver Interface 1553')"
   );
   assert(
     reportAero.diffs.some((d) => d.type === "QTY_CHANGE" && d.title.includes("Harness")),
-    "Case 8.3: Wiring harness quantity doubled (10 ➔ 20 units)"
+    "Case 8.3: Wiring harness quantity doubled (10 -> 20 units)"
   );
   assert(
     reportAero.diffs.some((d) => d.type === "PRICE_CHANGE" && d.title.includes("Flight Computer")),
-    "Case 8.4: ATR Chassis flight computer price adjustment detected ($9,500 ➔ $10,500)"
+    "Case 8.4: ATR Chassis flight computer price adjustment detected ($9,500 -> $10,500)"
   );
 
   // SUMMARY REPORT

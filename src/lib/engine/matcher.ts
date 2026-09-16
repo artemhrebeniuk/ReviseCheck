@@ -137,16 +137,73 @@ export async function matchLineItemsAsync(
     }
   }
 
-  // Pass 2: Candidates for AI / Semantic matching
+  // Pass 2: High-confidence heuristic matching (lexical equivalence & hardware identifiers)
   const remainingOriginals = originalItems.filter((i) => !usedOriginalIds.has(i.id));
   const remainingRevised = revisedItems.filter((i) => !usedRevisedIds.has(i.id));
 
+  // Pre-score all candidate pairs
+  const candidates: Array<{
+    orig: CanonicalLineItem;
+    rev: CanonicalLineItem;
+    score: number;
+    reason: string;
+  }> = [];
+
   for (const orig of remainingOriginals) {
     for (const rev of remainingRevised) {
-      if (usedOriginalIds.has(orig.id) || usedRevisedIds.has(rev.id)) continue;
+      const { score, reason } = calculateItemSimilarity(orig, rev);
+      if (score >= 0.45) {
+        candidates.push({ orig, rev, score, reason });
+      }
+    }
+  }
 
-      // Try Together AI if API key is provided
-      const aiResult = await matchItemsWithTogetherAI(orig, rev, togetherApiKey);
+  candidates.sort((a, b) => b.score - a.score);
+
+  // Instant match for high-confidence candidates (score >= 0.78)
+  const ambiguousCandidates: typeof candidates = [];
+
+  for (const cand of candidates) {
+    if (usedOriginalIds.has(cand.orig.id) || usedRevisedIds.has(cand.rev.id)) continue;
+
+    if (cand.score >= 0.78) {
+      matchedPairs.push({
+        originalItem: cand.orig,
+        revisedItem: cand.rev,
+        confidence: cand.score,
+        isConfirmed: true,
+        matchReason: cand.reason,
+      });
+      usedOriginalIds.add(cand.orig.id);
+      usedRevisedIds.add(cand.rev.id);
+    } else {
+      ambiguousCandidates.push(cand);
+    }
+  }
+
+  // Pass 3: Parallel AI arbiter for genuinely ambiguous items (if Together API key provided)
+  const remainingAmbiguous = ambiguousCandidates.filter(
+    (c) => !usedOriginalIds.has(c.orig.id) && !usedRevisedIds.has(c.rev.id)
+  );
+
+  if (togetherApiKey && remainingAmbiguous.length > 0) {
+    // Limit to top candidate pairs to prevent combinatorial explosion
+    const topCandidates = remainingAmbiguous.slice(0, 4);
+
+    const aiEvaluations = await Promise.all(
+      topCandidates.map(async (cand) => {
+        try {
+          const aiResult = await matchItemsWithTogetherAI(cand.orig, cand.rev, togetherApiKey);
+          return { cand, aiResult };
+        } catch {
+          return { cand, aiResult: null };
+        }
+      })
+    );
+
+    for (const { cand, aiResult } of aiEvaluations) {
+      if (usedOriginalIds.has(cand.orig.id) || usedRevisedIds.has(cand.rev.id)) continue;
+
       if (aiResult) {
         totalAiTokens += aiResult.usage.promptTokens + aiResult.usage.completionTokens;
         totalAiCost += aiResult.usage.costUSD;
@@ -154,8 +211,8 @@ export async function matchLineItemsAsync(
         if (aiResult.isMatch) {
           const isConfirmed = aiResult.confidence >= 0.8;
           const pair: MatchedPair = {
-            originalItem: orig,
-            revisedItem: rev,
+            originalItem: cand.orig,
+            revisedItem: cand.rev,
             confidence: aiResult.confidence,
             isConfirmed,
             matchReason: `Together AI (Llama 3.3 70B): ${aiResult.reason}`,
@@ -167,22 +224,21 @@ export async function matchLineItemsAsync(
             uncertainMatches.push(pair);
           }
 
-          usedOriginalIds.add(orig.id);
-          usedRevisedIds.add(rev.id);
+          usedOriginalIds.add(cand.orig.id);
+          usedRevisedIds.add(cand.rev.id);
           continue;
         }
       }
 
-      // Fallback to local heuristic scoring if AI did not match or offline
-      const { score, reason } = calculateItemSimilarity(orig, rev);
-      if (score >= 0.5) {
-        const isConfirmed = score >= 0.8;
+      // Fallback to heuristic scoring
+      if (cand.score >= 0.5) {
+        const isConfirmed = cand.score >= 0.8;
         const pair: MatchedPair = {
-          originalItem: orig,
-          revisedItem: rev,
-          confidence: score,
+          originalItem: cand.orig,
+          revisedItem: cand.rev,
+          confidence: cand.score,
           isConfirmed,
-          matchReason: reason,
+          matchReason: cand.reason,
         };
 
         if (isConfirmed) {
@@ -191,8 +247,33 @@ export async function matchLineItemsAsync(
           uncertainMatches.push(pair);
         }
 
-        usedOriginalIds.add(orig.id);
-        usedRevisedIds.add(rev.id);
+        usedOriginalIds.add(cand.orig.id);
+        usedRevisedIds.add(cand.rev.id);
+      }
+    }
+  } else {
+    // Pure offline heuristic for remaining ambiguous items
+    for (const cand of remainingAmbiguous) {
+      if (usedOriginalIds.has(cand.orig.id) || usedRevisedIds.has(cand.rev.id)) continue;
+
+      if (cand.score >= 0.48) {
+        const isConfirmed = cand.score >= 0.8;
+        const pair: MatchedPair = {
+          originalItem: cand.orig,
+          revisedItem: cand.rev,
+          confidence: cand.score,
+          isConfirmed,
+          matchReason: cand.reason,
+        };
+
+        if (isConfirmed) {
+          matchedPairs.push(pair);
+        } else {
+          uncertainMatches.push(pair);
+        }
+
+        usedOriginalIds.add(cand.orig.id);
+        usedRevisedIds.add(cand.rev.id);
       }
     }
   }

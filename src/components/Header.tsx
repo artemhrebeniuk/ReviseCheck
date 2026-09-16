@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FileCheck2, Zap, DollarSign, Crosshair, Settings, Cpu, ExternalLink, X, ShieldCheck } from "lucide-react";
+import { FileCheck2, Zap, DollarSign, Crosshair, Settings, Cpu, ExternalLink, X, ShieldCheck, Check } from "lucide-react";
 import { TelemetryData } from "@/lib/types";
 
 interface HeaderProps {
@@ -33,7 +33,7 @@ export function Header({ telemetry }: HeaderProps) {
   return (
     <>
       {/* Abhay Singh x Appsmith Floating Pill Header */}
-      <header className="sticky top-4 z-40 w-full px-4 sm:px-8 pointer-events-none mb-8">
+      <header className="sticky top-3 sm:top-4 z-40 w-full px-4 sm:px-8 pointer-events-none mb-2 sm:mb-3">
         <div className="max-w-4xl mx-auto flex h-14 items-center justify-between gap-4 rounded-full border border-gray-200 bg-white/85 backdrop-blur-xl shadow-sm px-5 pointer-events-auto">
           
           {/* Left: Appsmith Inspired Brand Mark & Identity */}
@@ -52,14 +52,14 @@ export function Header({ telemetry }: HeaderProps) {
           {/* Right: Live Telemetry & Quick Action Controls */}
           <div className="flex items-center gap-2 sm:gap-3">
             {telemetry && (
-              <div className="hidden md:flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-3 py-1 text-[11px]">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-gray-50 border border-gray-200 rounded-full px-2.5 sm:px-3 py-1 text-xs shadow-xs">
                 <div className="flex items-center gap-1 text-emerald-700 font-mono font-semibold">
-                  <Zap className="h-3 w-3 text-emerald-600" />
+                  <Zap className="h-3.5 w-3.5 text-emerald-600" />
                   <span>{telemetry.latencyMs}ms</span>
                 </div>
-                <span className="text-gray-300">|</span>
-                <div className="flex items-center gap-1 text-gray-600 font-mono font-medium">
-                  <DollarSign className="h-3 w-3 text-gray-400" />
+                <span className="text-gray-300 hidden sm:inline">|</span>
+                <div className="hidden sm:flex items-center gap-1 text-gray-600 font-mono font-medium">
+                  <DollarSign className="h-3.5 w-3.5 text-gray-400" />
                   <span>${telemetry.costUSD.toFixed(5)}</span>
                 </div>
               </div>
@@ -139,8 +139,15 @@ export function Header({ telemetry }: HeaderProps) {
             </div>
 
             <div className="pt-2 flex items-center justify-between">
-              <span className="text-[11px] text-gray-500 font-mono">
-                {isSaved ? "✓ Settings saved locally" : "Keys stored in browser localStorage"}
+              <span className="text-xs text-gray-500 font-mono inline-flex items-center gap-1">
+                {isSaved ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Settings saved locally</span>
+                  </>
+                ) : (
+                  <span>Keys stored in browser localStorage</span>
+                )}
               </span>
               <button
                 onClick={handleSave}

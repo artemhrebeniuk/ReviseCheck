@@ -65,18 +65,21 @@ export function formatCurrency(amount: number | string | undefined, currency: st
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
   if (isNaN(num)) return "N/A";
 
-  const formatted = num.toLocaleString("en-US", {
+  const isNegative = num < 0;
+  const absFormatted = Math.abs(num).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
+  const sign = isNegative ? "-" : "";
+
   if (currency === "USD" || currency === "$") {
-    return `$${formatted}`;
+    return `${sign}$${absFormatted}`;
   }
   if (currency === "EUR" || currency === "€") {
-    return `€${formatted}`;
+    return `${sign}€${absFormatted}`;
   }
-  return `${currency} ${formatted}`;
+  return `${sign}${currency} ${absFormatted}`;
 }
 
 /**

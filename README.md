@@ -1,4 +1,4 @@
-# ⚖️ ReviseCheck — Commercial Offer Differential Auditor
+# ReviseCheck — Commercial Offer Differential Auditor
 
 <div align="left">
 
@@ -20,18 +20,18 @@
 
 ## Table of Contents
 
-- [Quick Start](#-quick-start--installation)
-- [Key Capabilities](#-key-capabilities)
-- [Architecture](#-system-architecture--dataflow-topology)
-- [Project Structure](#-project-directory-structure)
-- [Tech Stack](#-technical-specifications)
-- [Benchmark Suite](#-benchmark--verification-suite)
-- [Delivery Notes & Submission Report](#-delivery-notes--submission-report)
-- [License](#-license)
+- [Quick Start](#quick-start--installation)
+- [Key Capabilities](#key-capabilities)
+- [Architecture](#system-architecture--dataflow-topology)
+- [Project Structure](#project-directory-structure)
+- [Tech Stack](#technical-specifications)
+- [Benchmark Suite](#benchmark--verification-suite)
+- [Delivery Notes & Submission Report](#delivery-notes--submission-report)
+- [License](#license)
 
 ---
 
-## 🚀 Quick Start & Installation
+## Quick Start & Installation
 
 ### Prerequisites
 
@@ -73,7 +73,7 @@ npm run generate:samples
 
 ---
 
-## 🌟 Key Capabilities
+## Key Capabilities
 
 ### 1. Zero-Hallucination Deterministic Math Engine (`Decimal.js`)
 * **Strict Calculation Decoupling:** Large Language Models are explicitly excluded from numerical calculations.
@@ -81,7 +81,7 @@ npm run generate:samples
 * **No Silent Overwrites:** If a vendor document contains an intentional or accidental arithmetic discrepancy (e.g. -$200 undercount), the engine records both the source value and the calculated sum, issuing a `REJECT / HOLD` verdict to protect against contract liabilities.
 
 ### 2. Strict Formatting Immunity
-* **Structure Normalization:** Swapped columns, font substitutions (e.g. Helvetica ➔ Courier), border alterations, and layout redesigns are deterministically recognized as non-substantive.
+* **Structure Normalization:** Swapped columns, font substitutions (e.g. Helvetica -> Courier), border alterations, and layout redesigns are deterministically recognized as non-substantive.
 * **Zero False Positives:** A proposal with only visual and typographic revisions yields strictly **0 commercial diffs** and triggers an automatic `APPROVE` verdict.
 
 ### 3. Synchronized Spatial Inspector (Dual-Canvas PDF.js)
@@ -103,7 +103,7 @@ npm run generate:samples
 
 ---
 
-## 📐 System Architecture & Dataflow Topology
+## System Architecture & Dataflow Topology
 
 ```text
  ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -151,7 +151,7 @@ npm run generate:samples
 
 ---
 
-## 📁 Project Directory Structure
+## Project Directory Structure
 
 ```text
 ReviseCheck/
@@ -200,7 +200,7 @@ ReviseCheck/
 
 ---
 
-## 🛠️ Technical Specifications
+## Technical Specifications
 
 | Layer / Component | Technology / Stack | Architectural Implementation & Optimization |
 | :--- | :--- | :--- |
@@ -215,7 +215,7 @@ ReviseCheck/
 
 ---
 
-## 🧪 Benchmark & Verification Suite
+## Benchmark & Verification Suite
 
 ReviseCheck contains an automated evaluation test suite with 34 deterministic assertions validating multi-page proposals, formatting immunity, and arithmetic discrepancies:
 
@@ -226,20 +226,20 @@ npm run benchmark
 
 | Suite | Documents | Scenario | Verdict |
 | :---: | :--- | :--- | :---: |
-| **01** | `offer_original` → `offer_revised_v1` | Standard audit: renamed server, reordered rows, Cat6 qty (50→100), monitor price ($250→$280), removed UPS, postponed date, −$200 vendor math error | `REJECT` ✅ |
-| **02** | `offer_original` → `offer_formatting_only` | Formatting-only immunity: Courier substitution, swapped columns, restyled borders → exactly **0** commercial diffs | `APPROVE` ✅ |
-| **03** | `offer_original` → `offer_ambiguous` | Decline to conclude: currency conflict (USD vs EUR) + "TBD" delivery → clarification modal | `NEEDS_CLARIFICATION` ✅ |
-| **04** | `offer_original` → `offer_clean_approval` | Authorized revision: 5% volume rebate across 10 items, verified math ($2,970 savings) | `APPROVE` ✅ |
-| **05** | `offer_3page_original` → `offer_3page_revised` | 3-page scope limit: cross-page reordering, −$500 math mismatch on Page 3 | `REJECT` ✅ |
-| **06** | `offer_cloud_migration_orig` → `offer_cloud_migration_rev` | Cloud modernization: Graviton3 upgrade, S3 expansion, NAT Gateway elimination | `APPROVE` ✅ |
-| **07** | `offer_arithmetic_inflation_orig` → `offer_arithmetic_inflation_rev` | Severe math inflation: grand total +$4,500 over stated line items | `REJECT` ✅ |
-| **08** | `offer_milestone_schedule_orig` → `offer_milestone_schedule_rev` | Schedule realignment: avionics rename, wiring harness qty doubled, delivery Feb 2027 | `APPROVE` ✅ |
+| **01** | `offer_original` → `offer_revised_v1` | Standard audit: renamed server, reordered rows, Cat6 qty (50→100), monitor price ($250→$280), removed UPS, postponed date, −$200 vendor math error | `REJECT` [PASS] |
+| **02** | `offer_original` → `offer_formatting_only` | Formatting-only immunity: Courier substitution, swapped columns, restyled borders → exactly **0** commercial diffs | `APPROVE` [PASS] |
+| **03** | `offer_original` → `offer_ambiguous` | Decline to conclude: currency conflict (USD vs EUR) + "TBD" delivery → clarification modal | `NEEDS_CLARIFICATION` [PASS] |
+| **04** | `offer_original` → `offer_clean_approval` | Authorized revision: 5% volume rebate across 10 items, verified math ($2,970 savings) | `APPROVE` [PASS] |
+| **05** | `offer_3page_original` → `offer_3page_revised` | 3-page scope limit: cross-page reordering, −$500 math mismatch on Page 3 | `REJECT` [PASS] |
+| **06** | `offer_cloud_migration_orig` → `offer_cloud_migration_rev` | Cloud modernization: Graviton3 upgrade, S3 expansion, NAT Gateway elimination | `APPROVE` [PASS] |
+| **07** | `offer_arithmetic_inflation_orig` → `offer_arithmetic_inflation_rev` | Severe math inflation: grand total +$4,500 over stated line items | `REJECT` [PASS] |
+| **08** | `offer_milestone_schedule_orig` → `offer_milestone_schedule_rev` | Schedule realignment: avionics rename, wiring harness qty doubled, delivery Feb 2027 | `APPROVE` [PASS] |
 
 **34/34 assertions passed — 100% pass rate across all suites.**
 
 ---
 
-## 📋 Delivery Notes & Submission Report
+## Delivery Notes & Submission Report
 
 This section documents the formal evaluation briefing requested by the screening challenge brief.
 
@@ -247,14 +247,14 @@ This section documents the formal evaluation briefing requested by the screening
 
 | Suite | Baseline Document | Revised / Candidate Document | Expected Outcome | Actual Measured Result | Measured Latency | Variable Cost | Verdict |
 | :---: | :--- | :--- | :--- | :--- | :---: | :---: | :---: |
-| **01** | `offer_original.pdf` (2 pages, 10 items, USD) | `offer_revised_v1.pdf` (2 pages, 9 items) | Detect 7 core changes: server rename, row swap, Cat6 qty (+50), monitor price (+$30), UPS removal, date postponement, vendor math error (-$200 on Cat6). | 7/7 core changes detected. Line math error caught (`100 × $10 = $800`, stated vs `$1,000` calculated). Dual coordinates validated across all diffs. | 290 ms | $0.00018 | `REJECT` ✅ |
-| **02** | `offer_original.pdf` (Helvetica, standard layout) | `offer_formatting_only.pdf` (Courier, swapped columns, restyled borders) | Strictly **0** commercial changes. Zero false alarms. Presentation-only approval. | 0 substantive commercial changes reported. 10/10 items aligned with identical quantities, rates, and totals. | 225 ms | $0.00000 | `APPROVE` ✅ |
-| **03** | `offer_original.pdf` (USD, Oct 15 delivery) | `offer_ambiguous.pdf` (EUR currency, TBD delivery date) | Decline to conclude. Escalate currency conflict and indefinite schedule to human decision-maker. | Status `NEEDS_CLARIFICATION` issued. 3 actionable clarification questions generated for executive review. | 185 ms | $0.00000 | `NEEDS_CLARIFICATION` ✅ |
-| **04** | `offer_original.pdf` ($59,400 total) | `offer_clean_approval.pdf` (5% negotiated bulk rebate) | Clean revision approved with zero arithmetic discrepancies. Net savings: -$2,970.00. | Approved without warnings. Net financial delta calculated at exact -$2,970.00. | 260 ms | $0.00000 | `APPROVE` ✅ |
-| **05** | `offer_3page_original.pdf` (3 full pages, 10 items) | `offer_3page_revised.pdf` (3 full pages, 9 items) | Ingest maximum brief scope (3 pages). Catch -$500 math mismatch on Page 3 and date shift. | All 3 pages ingested concurrently. Discrepancy on page 3 detected with dual-canvas coordinate crosshairs. | 365 ms | $0.00018 | `REJECT` ✅ |
-| **06** | `offer_cloud_migration_orig.pdf` (AWS infrastructure) | `offer_cloud_migration_rev.pdf` (Graviton3 migration) | Cloud architecture upgrade: detect compute rename, S3 expansion, NAT Gateway scope removal. | Architecture upgrade and scope deletion identified with 100% precision. | 280 ms | $0.00000 | `APPROVE` ✅ |
-| **07** | `offer_arithmetic_inflation_orig.pdf` ($48,200 total) | `offer_arithmetic_inflation_rev.pdf` ($54,200 stated total) | Catch unallocated +$4,500 grand total inflation and line calculation inconsistency. | CRITICAL arithmetic error flagged. Executive verdict blocks agreement (`REJECT / HOLD`). | 210 ms | $0.00000 | `REJECT` ✅ |
-| **08** | `offer_milestone_schedule_orig.pdf` (Aerospace avionics) | `offer_milestone_schedule_rev.pdf` (Phased realignment) | Detect delivery date postponement to Feb 2027, avionics nomenclature rename, harness qty double. | All milestone deltas caught with exact original and revised location references. | 230 ms | $0.00000 | `APPROVE` ✅ |
+| **01** | `offer_original.pdf` (2 pages, 10 items, USD) | `offer_revised_v1.pdf` (2 pages, 9 items) | Detect 7 core changes: server rename, row swap, Cat6 qty (+50), monitor price (+$30), UPS removal, date postponement, vendor math error (-$200 on Cat6). | 7/7 core changes detected. Line math error caught (`100 × $10 = $800`, stated vs `$1,000` calculated). Dual coordinates validated across all diffs. | 290 ms | $0.00018 | `REJECT` [PASS] |
+| **02** | `offer_original.pdf` (Helvetica, standard layout) | `offer_formatting_only.pdf` (Courier, swapped columns, restyled borders) | Strictly **0** commercial changes. Zero false alarms. Presentation-only approval. | 0 substantive commercial changes reported. 10/10 items aligned with identical quantities, rates, and totals. | 225 ms | $0.00000 | `APPROVE` [PASS] |
+| **03** | `offer_original.pdf` (USD, Oct 15 delivery) | `offer_ambiguous.pdf` (EUR currency, TBD delivery date) | Decline to conclude. Escalate currency conflict and indefinite schedule to human decision-maker. | Status `NEEDS_CLARIFICATION` issued. 3 actionable clarification questions generated for executive review. | 185 ms | $0.00000 | `NEEDS_CLARIFICATION` [PASS] |
+| **04** | `offer_original.pdf` ($59,400 total) | `offer_clean_approval.pdf` (5% negotiated bulk rebate) | Clean revision approved with zero arithmetic discrepancies. Net savings: -$2,970.00. | Approved without warnings. Net financial delta calculated at exact -$2,970.00. | 260 ms | $0.00000 | `APPROVE` [PASS] |
+| **05** | `offer_3page_original.pdf` (3 full pages, 10 items) | `offer_3page_revised.pdf` (3 full pages, 9 items) | Ingest maximum brief scope (3 pages). Catch -$500 math mismatch on Page 3 and date shift. | All 3 pages ingested concurrently. Discrepancy on page 3 detected with dual-canvas coordinate crosshairs. | 365 ms | $0.00018 | `REJECT` [PASS] |
+| **06** | `offer_cloud_migration_orig.pdf` (AWS infrastructure) | `offer_cloud_migration_rev.pdf` (Graviton3 migration) | Cloud architecture upgrade: detect compute rename, S3 expansion, NAT Gateway scope removal. | Architecture upgrade and scope deletion identified with 100% precision. | 280 ms | $0.00000 | `APPROVE` [PASS] |
+| **07** | `offer_arithmetic_inflation_orig.pdf` ($48,200 total) | `offer_arithmetic_inflation_rev.pdf` ($54,200 stated total) | Catch unallocated +$4,500 grand total inflation and line calculation inconsistency. | CRITICAL arithmetic error flagged. Executive verdict blocks agreement (`REJECT / HOLD`). | 210 ms | $0.00000 | `REJECT` [PASS] |
+| **08** | `offer_milestone_schedule_orig.pdf` (Aerospace avionics) | `offer_milestone_schedule_rev.pdf` (Phased realignment) | Detect delivery date postponement to Feb 2027, avionics nomenclature rename, harness qty double. | All milestone deltas caught with exact original and revised location references. | 230 ms | $0.00000 | `APPROVE` [PASS] |
 
 ### 2. Failure Analysis & Edge Cases ("What Failed & How It Was Resolved")
 
@@ -331,7 +331,7 @@ During iterative engineering and testing, three critical edge case failure modes
 
 ---
 
-## 📝 License
+## License
 
 Distributed under the **MIT License**. See [LICENSE](LICENSE) for more information.
 

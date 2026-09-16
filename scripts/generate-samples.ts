@@ -271,7 +271,7 @@ export async function generateAllSyntheticSamples(targetDir?: string) {
     ]
   );
   fs.writeFileSync(path.join(outDir, "offer_original.pdf"), origPdf);
-  console.log("  ✓ Generated: offer_original.pdf (Baseline 2-page proposal, $59,400.00)");
+  console.log("  [OK] Generated: offer_original.pdf (Baseline 2-page proposal, $59,400.00)");
 
   // 2. Offer_Revised_v1.pdf (Core Brief 7 Variations + Intentional Math Discrepancy)
   const revPdf = await createProposalPdf(
@@ -315,7 +315,7 @@ export async function generateAllSyntheticSamples(targetDir?: string) {
     ]
   );
   fs.writeFileSync(path.join(outDir, "offer_revised_v1.pdf"), revPdf);
-  console.log("  ✓ Generated: offer_revised_v1.pdf (Core revision with 7 variations & vendor math error)");
+  console.log("  [OK] Generated: offer_revised_v1.pdf (Core revision with 7 variations & vendor math error)");
 
   // 3. Offer_FormattingOnly.pdf (Zero-False-Positive Test in Courier Font)
   const formatPdf = await createProposalPdf(
@@ -360,7 +360,7 @@ export async function generateAllSyntheticSamples(targetDir?: string) {
     "courier" // Courier font variation
   );
   fs.writeFileSync(path.join(outDir, "offer_formatting_only.pdf"), formatPdf);
-  console.log("  ✓ Generated: offer_formatting_only.pdf (Pure formatting mutation, Courier typeface)");
+  console.log("  [OK] Generated: offer_formatting_only.pdf (Pure formatting mutation, Courier typeface)");
 
   console.log("[ReviseCheck] Synthetic generation complete.\n");
 }
