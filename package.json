@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "benchmark": "tsx scripts/run-benchmark.ts",
-    "test:eval": "tsx scripts/run-benchmark.ts"
+    "test:eval": "tsx scripts/run-benchmark.ts",
+    "generate:samples": "tsx scripts/generate-samples.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
