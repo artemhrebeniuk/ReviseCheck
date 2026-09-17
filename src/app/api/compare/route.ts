@@ -8,39 +8,68 @@ import { compareCommercialOffersAsync } from "@/lib/engine/diff";
 // High-performance server-side in-memory cache keyed by MD5 content hash
 const contentCache = new Map<string, any>();
 
-function computeContentHash(orig: Buffer | Uint8Array, rev: Buffer | Uint8Array, apiKey?: string): string {
+function computeContentHash(
+  orig: Buffer | Uint8Array,
+  rev: Buffer | Uint8Array,
+  apiKey?: string,
+): string {
   return crypto
     .createHash("md5")
-    .update(Buffer.concat([Buffer.from(orig), Buffer.from(rev), Buffer.from(apiKey || "")]))
+    .update(
+      Buffer.concat([
+        Buffer.from(orig),
+        Buffer.from(rev),
+        Buffer.from(apiKey || ""),
+      ]),
+    )
     .digest("hex");
 }
 
-function loadPresetBuffers(preset: string, samplesDir: string): { orig: Buffer; rev: Buffer } {
+function loadPresetBuffers(
+  preset: string,
+  samplesDir: string,
+): { orig: Buffer; rev: Buffer } {
   switch (preset) {
     case "hyperscale_3page":
       return {
-        orig: fs.readFileSync(path.join(samplesDir, "offer_3page_original.pdf")),
+        orig: fs.readFileSync(
+          path.join(samplesDir, "offer_3page_original.pdf"),
+        ),
         rev: fs.readFileSync(path.join(samplesDir, "offer_3page_revised.pdf")),
       };
     case "cloud_migration":
       return {
-        orig: fs.readFileSync(path.join(samplesDir, "offer_cloud_migration_orig.pdf")),
-        rev: fs.readFileSync(path.join(samplesDir, "offer_cloud_migration_rev.pdf")),
+        orig: fs.readFileSync(
+          path.join(samplesDir, "offer_cloud_migration_orig.pdf"),
+        ),
+        rev: fs.readFileSync(
+          path.join(samplesDir, "offer_cloud_migration_rev.pdf"),
+        ),
       };
     case "arithmetic_inflation":
       return {
-        orig: fs.readFileSync(path.join(samplesDir, "offer_arithmetic_inflation_orig.pdf")),
-        rev: fs.readFileSync(path.join(samplesDir, "offer_arithmetic_inflation_rev.pdf")),
+        orig: fs.readFileSync(
+          path.join(samplesDir, "offer_arithmetic_inflation_orig.pdf"),
+        ),
+        rev: fs.readFileSync(
+          path.join(samplesDir, "offer_arithmetic_inflation_rev.pdf"),
+        ),
       };
     case "milestone_schedule":
       return {
-        orig: fs.readFileSync(path.join(samplesDir, "offer_milestone_schedule_orig.pdf")),
-        rev: fs.readFileSync(path.join(samplesDir, "offer_milestone_schedule_rev.pdf")),
+        orig: fs.readFileSync(
+          path.join(samplesDir, "offer_milestone_schedule_orig.pdf"),
+        ),
+        rev: fs.readFileSync(
+          path.join(samplesDir, "offer_milestone_schedule_rev.pdf"),
+        ),
       };
     case "formatting":
       return {
         orig: fs.readFileSync(path.join(samplesDir, "offer_original.pdf")),
-        rev: fs.readFileSync(path.join(samplesDir, "offer_formatting_only.pdf")),
+        rev: fs.readFileSync(
+          path.join(samplesDir, "offer_formatting_only.pdf"),
+        ),
       };
     case "ambiguous":
       return {
@@ -82,7 +111,10 @@ async function warmPresetCache() {
         extractPdfDocument(buffers.orig),
         extractPdfDocument(buffers.rev),
       ]);
-      const report = await compareCommercialOffersAsync(docOriginal, docRevised);
+      const report = await compareCommercialOffersAsync(
+        docOriginal,
+        docRevised,
+      );
       contentCache.set(hash, {
         success: true,
         report,
@@ -117,7 +149,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const contentType = req.headers.get("content-type") || "";
-    const authHeader = req.headers.get("x-together-key") || process.env.TOGETHER_API_KEY;
+    const authHeader =
+      req.headers.get("x-together-key") || process.env.TOGETHER_API_KEY;
 
     let originalBuffer: Buffer | Uint8Array | null = null;
     let revisedBuffer: Buffer | Uint8Array | null = null;
@@ -141,13 +174,18 @@ export async function POST(req: NextRequest) {
         originalBuffer = buffers.orig;
         revisedBuffer = buffers.rev;
       } else {
-        const file1 = formData.get("fileOriginal") as File | null;
-        const file2 = formData.get("fileRevised") as File | null;
+        const file1 = (formData.get("fileOriginal") ||
+          formData.get("original")) as File | null;
+        const file2 = (formData.get("fileRevised") ||
+          formData.get("revised")) as File | null;
 
         if (!file1 || !file2) {
           return NextResponse.json(
-            { error: "Both fileOriginal and fileRevised PDF files are required." },
-            { status: 400 }
+            {
+              error:
+                "Both fileOriginal and fileRevised PDF files are required.",
+            },
+            { status: 400 },
           );
         }
 
@@ -170,11 +208,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (!originalBuffer || !revisedBuffer) {
-      return NextResponse.json({ error: "Could not load document buffers." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Could not load document buffers." },
+        { status: 400 },
+      );
     }
 
     // Content-based caching: if exact document buffers were evaluated previously, return cached report
-    const cacheKey = computeContentHash(originalBuffer, revisedBuffer, clientApiKey);
+    const cacheKey = computeContentHash(
+      originalBuffer,
+      revisedBuffer,
+      clientApiKey,
+    );
     if (contentCache.has(cacheKey)) {
       const cached = contentCache.get(cacheKey);
       return NextResponse.json({
@@ -199,7 +244,7 @@ export async function POST(req: NextRequest) {
     const report = await compareCommercialOffersAsync(
       docOriginal,
       docRevised,
-      clientApiKey
+      clientApiKey,
     );
 
     const totalDuration = Date.now() - startTime;
@@ -232,7 +277,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(payload);
   } catch (error: unknown) {
     console.error("Comparison API error:", error);
-    const msg = error instanceof Error ? error.message : "Internal Server Error";
+    const msg =
+      error instanceof Error ? error.message : "Internal Server Error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

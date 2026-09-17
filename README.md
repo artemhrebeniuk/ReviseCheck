@@ -75,6 +75,10 @@ npm run generate:samples
 
 ## Key Capabilities
 
+
+![ReviseCheck Audit Results](public/screenshots/dashboard.png)
+
+
 ### 1. Zero-Hallucination Deterministic Math Engine (`Decimal.js`)
 * **Strict Calculation Decoupling:** Large Language Models are explicitly excluded from numerical calculations.
 * **Line-by-Line & Grand Total Auditing:** Recomputes every line item (`Quantity × Unit Price = Stated Total`) and validates the aggregate proposal sum using arbitrary-precision math.

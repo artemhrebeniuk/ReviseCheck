@@ -37,7 +37,9 @@ export function normalizeItemName(name: string): string {
  * @param val - Raw value from document text extraction
  * @returns Parsed number, or null if the value is uncommitted or indeterminate
  */
-export function parseNumericValue(val: string | number | undefined): number | null {
+export function parseNumericValue(
+  val: string | number | undefined,
+): number | null {
   if (val === undefined || val === null) return null;
   if (typeof val === "number") return val;
 
@@ -67,8 +69,10 @@ export function parseNumericValue(val: string | number | undefined): number | nu
   // Architectural Decision: Distinguish European decimal comma from US decimal point:
   // European format: 1.250,50 (dot is thousands separator, comma is decimal)
   // US format:       1,250.50 (comma is thousands separator, dot is decimal)
-  const hasCommaDecimal = /\d+\.\d{3},\d{1,4}$/.test(cleaned) || /^\d+,\d{1,4}$/.test(cleaned);
-  const hasDotDecimal = /\d+,\d{3}\.\d{1,4}$/.test(cleaned) || /^\d+\.\d{1,4}$/.test(cleaned);
+  const hasCommaDecimal =
+    /\d+\.\d{3},\d{1,4}$/.test(cleaned) || /^\d+,\d{1,4}$/.test(cleaned);
+  const hasDotDecimal =
+    /\d+,\d{3}\.\d{1,4}$/.test(cleaned) || /^\d+\.\d{1,4}$/.test(cleaned);
 
   if (hasCommaDecimal && !hasDotDecimal) {
     // European: 1.250,50 => 1250.50
@@ -92,7 +96,10 @@ export function parseNumericValue(val: string | number | undefined): number | nu
  * @param baseAmount - Base sum from line items or subtotal to compute percentage against
  * @returns Evaluated numeric discount amount in currency units
  */
-export function parseDiscountToken(raw: string, baseAmount: number = 0): number | null {
+export function parseDiscountToken(
+  raw: string,
+  baseAmount: number = 0,
+): number | null {
   if (!raw) return null;
   const cleaned = String(raw).trim();
   const percentMatch = cleaned.match(/(\d+(?:\.\d+)?)%/);
@@ -112,7 +119,10 @@ export function parseDiscountToken(raw: string, baseAmount: number = 0): number 
  * @param currency - Currency code or symbol (e.g., 'USD', 'EUR', '$', '€')
  * @returns Formatted currency string with two fractional digits
  */
-export function formatCurrency(amount: number | string | undefined, currency: string = "USD"): string {
+export function formatCurrency(
+  amount: number | string | undefined,
+  currency: string = "USD",
+): string {
   if (amount === undefined || amount === null) return "N/A";
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
   if (isNaN(num)) return "N/A";
@@ -144,24 +154,35 @@ export function formatCurrency(amount: number | string | undefined, currency: st
 export function parseDate(dateStr: string): string | null {
   const cleaned = cleanText(dateStr);
   const match = cleaned.match(
-    /(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}|\d{4}[-/]\d{2}[-/]\d{2}|\d{1,2}[./]\d{1,2}[./]\d{4}/i
+    /(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}|\d{4}[-/]\d{2}[-/]\d{2}|\d{1,2}[./]\d{1,2}[./]\d{4}/i,
   );
   return match ? match[0] : null;
 }
 
 const MONTH_MAP: Record<string, number> = {
-  jan: 1, january: 1,
-  feb: 2, february: 2,
-  mar: 3, march: 3,
-  apr: 4, april: 4,
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
   may: 5,
-  jun: 6, june: 6,
-  jul: 7, july: 7,
-  aug: 8, august: 8,
-  sep: 9, september: 9,
-  oct: 10, october: 10,
-  nov: 11, november: 11,
-  dec: 12, december: 12,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
 };
 
 /**
@@ -237,7 +258,10 @@ export function areDatesEquivalent(date1?: string, date2?: string): boolean {
   if (!date1 || !date2) return false;
   if (date1.trim().toLowerCase() === date2.trim().toLowerCase()) return true;
 
-  if (/tbd|determined|pending/i.test(date1) || /tbd|determined|pending/i.test(date2)) {
+  if (
+    /tbd|determined|pending/i.test(date1) ||
+    /tbd|determined|pending/i.test(date2)
+  ) {
     return false;
   }
 
@@ -249,4 +273,3 @@ export function areDatesEquivalent(date1?: string, date2?: string): boolean {
 
   return false;
 }
-

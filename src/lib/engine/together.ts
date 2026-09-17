@@ -35,7 +35,7 @@ export async function matchItemsWithTogetherAI(
   originalItem: CanonicalLineItem,
   revisedItem: CanonicalLineItem,
   apiKey: string = TOGETHER_API_KEY,
-  modelName: string = DEFAULT_MODEL
+  modelName: string = DEFAULT_MODEL,
 ): Promise<TogetherSemanticMatchResult | null> {
   if (!apiKey) return null;
 
@@ -64,7 +64,8 @@ Return ONLY a valid JSON object matching this schema:
         messages: [
           {
             role: "system",
-            content: "You are a precise commercial contract auditor. Always output pure valid JSON.",
+            content:
+              "You are a precise commercial contract auditor. Always output pure valid JSON.",
           },
           {
             role: "user",
@@ -95,7 +96,8 @@ Return ONLY a valid JSON object matching this schema:
 
     return {
       isMatch: Boolean(parsed.isMatch),
-      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.85,
+      confidence:
+        typeof parsed.confidence === "number" ? parsed.confidence : 0.85,
       reason: parsed.reason || "Semantic correspondence identified by AI",
       usage: {
         promptTokens,

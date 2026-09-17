@@ -4,7 +4,12 @@ import {
   ExtractedDocument,
   SourceLocation,
 } from "../types";
-import { normalizeItemName, parseNumericValue, parseDate, parseDiscountToken } from "../engine/normalizer";
+import {
+  normalizeItemName,
+  parseNumericValue,
+  parseDate,
+  parseDiscountToken,
+} from "../engine/normalizer";
 
 interface RawToken {
   text: string;
@@ -34,7 +39,7 @@ interface RawLine {
  * @returns Extracted document representation containing canonical line items, raw text, and page metrics
  */
 export async function extractPdfDocument(
-  pdfBuffer: Uint8Array | ArrayBuffer | Buffer
+  pdfBuffer: Uint8Array | ArrayBuffer | Buffer,
 ): Promise<ExtractedDocument> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const data = new Uint8Array(pdfBuffer);
@@ -96,7 +101,12 @@ export async function extractPdfDocument(
           y: token.y,
           tokens: [],
           text: "",
-          bbox: { x: token.x, y: token.y, width: token.width, height: token.height },
+          bbox: {
+            x: token.x,
+            y: token.y,
+            width: token.width,
+            height: token.height,
+          },
         };
         pageLines.push(line);
       }
@@ -107,7 +117,10 @@ export async function extractPdfDocument(
     pageLines.sort((a, b) => a.y - b.y);
     for (const line of pageLines) {
       line.tokens.sort((a, b) => a.x - b.x);
-      line.text = line.tokens.map((t) => t.text).join(" ").trim();
+      line.text = line.tokens
+        .map((t) => t.text)
+        .join(" ")
+        .trim();
 
       const minX = Math.min(...line.tokens.map((t) => t.x));
       const minY = Math.min(...line.tokens.map((t) => t.y));
@@ -149,10 +162,16 @@ export async function extractPdfDocument(
     }
 
     // Detect Currency (ISO Codes & Flexible Statements e.g. "Currency: USD", "All prices quoted in CAD")
-    const currMatch = text.match(/(?:Currency|All\s+prices\s+quoted\s+in|Base\s+Currency)\s*[:]?\s*([A-Z]{3})/i);
+    const currMatch = text.match(
+      /(?:Currency|All\s+prices\s+quoted\s+in|Base\s+Currency)\s*[:]?\s*([A-Z]{3})/i,
+    );
     if (currMatch) {
       const code = currMatch[1].toUpperCase();
-      if (/^(USD|EUR|GBP|RUB|CAD|AUD|CHF|JPY|CNY|SGD|NZD|SEK|NOK|PLN|UAH)$/.test(code)) {
+      if (
+        /^(USD|EUR|GBP|RUB|CAD|AUD|CHF|JPY|CNY|SGD|NZD|SEK|NOK|PLN|UAH)$/.test(
+          code,
+        )
+      ) {
         currency = code;
       }
     } else if (text.includes("Currency:") || text.includes("Base Currency:")) {
@@ -168,8 +187,14 @@ export async function extractPdfDocument(
     }
 
     // Detect Dates
-    if (text.includes("Date of Issue:") || text.includes("Issue Date:") || /Proposal Date/i.test(text)) {
-      const match = text.match(/(?:Issue(?:\s+Date)?:?\s*)([A-Za-z0-9,\s]+?)(?:Validity|Proposal|$)/i);
+    if (
+      text.includes("Date of Issue:") ||
+      text.includes("Issue Date:") ||
+      /Proposal Date/i.test(text)
+    ) {
+      const match = text.match(
+        /(?:Issue(?:\s+Date)?:?\s*)([A-Za-z0-9,\s]+?)(?:Validity|Proposal|$)/i,
+      );
       if (match) {
         const raw = match[1].trim();
         issueDate = parseDate(raw) || raw;
@@ -184,27 +209,38 @@ export async function extractPdfDocument(
       if (parsedDelivery && !deliveryDate) deliveryDate = parsedDelivery;
     }
 
-    // Detect Stated Grand Total
-    const gtMatch = text.match(
-      /(?:Grand Total|Total Amount|Total Proposed|Total Revised|Total Contract Value)\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i
-    );
-    if (gtMatch) {
-      const parsed = parseNumericValue(gtMatch[1]);
-      if (parsed !== null) {
-        statedGrandTotal = parsed;
-      }
-    } else if (/(?:Grand Total|Total Amount|Total Proposed|Total Revised|Total Contract Value)\s*[:$]/i.test(text)) {
-      const parts = text.split(/\s+/);
-      const last = parts[parts.length - 1];
-      const parsed = parseNumericValue(last);
-      if (parsed !== null) {
-        statedGrandTotal = parsed;
+    // Detect Stated Grand Total — handles many variants:
+    //   "Grand Total: $57,900.00"
+    //   "Grand Total (USD): $57,900.00"
+    //   "Grand Total (USD ($)): $59,400.00"
+    //   "Total Amount EUR: 54,000.00"
+    const gtKeyword =
+      /(?:Grand Total|Total Amount|Total Proposed|Total Revised|Total Contract Value)/i.test(
+        text,
+      );
+    if (gtKeyword) {
+      // Strategy 1: lazy match to first currency-prefixed number after the keyword
+      const m1 = text.match(
+        /(?:Grand Total|Total Amount|Total Proposed|Total Revised|Total Contract Value).*?([$€£][0-9,]+(?:\.[0-9]{2})?)/i,
+      );
+      if (m1) {
+        const parsed = parseNumericValue(m1[1]);
+        if (parsed !== null && parsed > 1) statedGrandTotal = parsed;
+      } else {
+        // Strategy 2: number after last colon or dollar sign on the line
+        const m2 = text.match(/([$€£][0-9,]+(?:\.[0-9]{2})?)(?:\s*)$/);
+        if (m2) {
+          const parsed = parseNumericValue(m2[1]);
+          if (parsed !== null && parsed > 1) statedGrandTotal = parsed;
+        }
       }
     }
 
     // Detect Subtotal
     if (/Subtotal/i.test(text)) {
-      const subMatch = text.match(/Subtotal\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i);
+      const subMatch = text.match(
+        /Subtotal\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i,
+      );
       if (subMatch) {
         const parsed = parseNumericValue(subMatch[1]);
         if (parsed !== null) subtotal = parsed;
@@ -222,24 +258,35 @@ export async function extractPdfDocument(
       if (pct) {
         discountPercent = parseFloat(pct[1]);
       }
-      const discMatch = text.match(/(?:Discount|Rebate)\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i);
+      const discMatch = text.match(
+        /(?:Discount|Rebate)\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i,
+      );
       const targetStr = discMatch ? discMatch[1] : text.split(/\s+/).pop()!;
-      const parsed = parseDiscountToken(targetStr, subtotal ?? statedGrandTotal ?? 0);
+      const parsed = parseDiscountToken(
+        targetStr,
+        subtotal ?? statedGrandTotal ?? 0,
+      );
       if (parsed !== null && parsed !== 0) {
         discountAmount = Math.abs(parsed);
       } else if (pct) {
         const base = subtotal ?? statedGrandTotal ?? 0;
-        discountAmount = Math.round(base * (parseFloat(pct[1]) / 100) * 100) / 100;
+        discountAmount =
+          Math.round(base * (parseFloat(pct[1]) / 100) * 100) / 100;
       }
     }
 
     // Detect Tax / VAT
-    if (/(?:VAT|Tax|Sales Tax)/i.test(text) && !/terms|validity|condition/i.test(text)) {
+    if (
+      /(?:VAT|Tax|Sales Tax)/i.test(text) &&
+      !/terms|validity|condition/i.test(text)
+    ) {
       const pct = text.match(/(\d+(?:\.\d+)?)%/);
       if (pct) {
         taxPercent = parseFloat(pct[1]);
       }
-      const vatMatch = text.match(/(?:VAT|Tax|Sales Tax)\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i);
+      const vatMatch = text.match(
+        /(?:VAT|Tax|Sales Tax)\s*[:$]?\s*([$€£]?[0-9,]+(?:\.[0-9]{2})?)/i,
+      );
       const targetStr = vatMatch ? vatMatch[1] : text.split(/\s+/).pop()!;
       const parsed = parseNumericValue(targetStr);
       if (parsed !== null && parsed !== 0) {
@@ -258,7 +305,9 @@ export async function extractPdfDocument(
     }
 
     // Detect Delivery Terms / Incoterms
-    const incotermsMatch = text.match(/\b(DDP|EXW|FOB|CIF|DAP|CIP|CPT|FCA|FAS|DPU)\b/i);
+    const incotermsMatch = text.match(
+      /\b(DDP|EXW|FOB|CIF|DAP|CIP|CPT|FCA|FAS|DPU)\b/i,
+    );
     if (incotermsMatch && !deliveryTerms) {
       deliveryTerms = incotermsMatch[1].toUpperCase();
     }
@@ -283,13 +332,23 @@ export async function extractPdfDocument(
     if (/₽|\bRUB\b/.test(line.text)) rubCount++;
   }
 
-  const hasExplicitCurrencyHeader = allLines.some((l) => /Currency\s*:/i.test(l.text));
+  const hasExplicitCurrencyHeader = allLines.some((l) =>
+    /Currency\s*:/i.test(l.text),
+  );
   if (!hasExplicitCurrencyHeader) {
     if (eurCount > usdCount && eurCount > gbpCount && eurCount > rubCount) {
       currency = "EUR";
-    } else if (gbpCount > usdCount && gbpCount > eurCount && gbpCount > rubCount) {
+    } else if (
+      gbpCount > usdCount &&
+      gbpCount > eurCount &&
+      gbpCount > rubCount
+    ) {
       currency = "GBP";
-    } else if (rubCount > usdCount && rubCount > eurCount && rubCount > gbpCount) {
+    } else if (
+      rubCount > usdCount &&
+      rubCount > eurCount &&
+      rubCount > gbpCount
+    ) {
       currency = "RUB";
     } else if (usdCount > 0) {
       currency = "USD";
@@ -315,13 +374,17 @@ export async function extractPdfDocument(
 
     // Skip document headers, section banners, running headers and pagination text
     if (
-      /COMMERCIAL PROPOSAL|OFFICIAL PROPOSAL|ENTERPRISE PROPOSAL|REVISED PROPOSAL|PROPOSAL #|SECTION \d+|TIER \d+|MODULE [A-Z0-9]+|TERMS & CONDITIONS|Authorized Signature|Date of Issue|Date:|Validity:|Currency:|Page \d+ of \d+/i.test(
-        text
+      /COMMERCIAL PROPOSAL|OFFICIAL PROPOSAL|ENTERPRISE PROPOSAL|REVISED PROPOSAL|PROPOSAL #|^\s*(?:SECTION|TIER)\s+\d+\b|MODULE [A-Z0-9]+|TERMS & CONDITIONS|Authorized Signature|Date of Issue|Date:|Validity:|Currency:|Page \d+ of \d+/i.test(
+        text,
       )
     ) {
       // Only genuine contractual closing sections terminate the line-item table.
       // Running header metadata (Date of Issue, Validity) on page 2 or 3 must NOT terminate inTable.
-      if (/TERMS & CONDITIONS|Authorized Signature|Sign-off|Acceptance of Proposal/i.test(text)) {
+      if (
+        /TERMS & CONDITIONS|Authorized Signature|Sign-off|Acceptance of Proposal/i.test(
+          text,
+        )
+      ) {
         inTable = false;
         pendingDescPrefix = "";
       }
@@ -336,7 +399,7 @@ export async function extractPdfDocument(
     // Table Header Detection
     if (
       /(?:Description|Item|Specification|Scope|Deliverable|Component|Service|Product|BOM|Work\s*Package|Task).*?(?:Total|Amount|Price|Rate|Fee|Cost|Ext)|ITEM DESCRIPTION.*QUANTITY|#\s+.*(?:Item|Description|Scope|Deliverable)/i.test(
-        text
+        text,
       )
     ) {
       inTable = true;
@@ -355,7 +418,7 @@ export async function extractPdfDocument(
     if (
       inTable &&
       /Subtotal|Grand Total|Total Amount|Total Items|Total Proposed|Total Revised|Stated Total|Payment Terms|Authorized/i.test(
-        text
+        text,
       )
     ) {
       inTable = false;
@@ -369,7 +432,7 @@ export async function extractPdfDocument(
       while (
         cleanTokens.length > 3 &&
         /^(?:net|gross|ea|each|mo|month|yr|year|lot|pcs|units|vat|tax|incl|excl)$/i.test(
-          cleanTokens[cleanTokens.length - 1]
+          cleanTokens[cleanTokens.length - 1],
         )
       ) {
         cleanTokens.pop();
@@ -385,11 +448,17 @@ export async function extractPdfDocument(
         if (cleanTokens.length >= 5) {
           const tokPenultimate = cleanTokens[cleanTokens.length - 2];
           const tokAntepenultimate = cleanTokens[cleanTokens.length - 3];
-          
-          if (/^[-−]?\d+(?:\.\d+)?%$/i.test(tokPenultimate) || /^(?:disc|rebate|discount)$/i.test(tokPenultimate)) {
+
+          if (
+            /^[-−]?\d+(?:\.\d+)?%$/i.test(tokPenultimate) ||
+            /^(?:disc|rebate|discount)$/i.test(tokPenultimate)
+          ) {
             rawPriceCandidate = cleanTokens[cleanTokens.length - 3];
             rawQtyCandidate = cleanTokens[cleanTokens.length - 4];
-          } else if (/^(?:disc|rebate|discount)$/i.test(tokPenultimate) && /^[-−]?\d+(?:\.\d+)?%$/i.test(tokAntepenultimate)) {
+          } else if (
+            /^(?:disc|rebate|discount)$/i.test(tokPenultimate) &&
+            /^[-−]?\d+(?:\.\d+)?%$/i.test(tokAntepenultimate)
+          ) {
             rawPriceCandidate = cleanTokens[cleanTokens.length - 4];
             rawQtyCandidate = cleanTokens[cleanTokens.length - 5];
           }
@@ -417,8 +486,14 @@ export async function extractPdfDocument(
         const rawTotal = parseNumericValue(totalStr);
 
         // Require at least a valid price or total (or explicit TBD) to prevent sentence text from parsing as a line item
-        if (rawPrice === null && rawPriceCandidate.toUpperCase() !== "TBD" && rawTotal === null) {
-          if (!/Terms|Validity|Condition|Subtotal|Total|Signature/i.test(text)) {
+        if (
+          rawPrice === null &&
+          rawPriceCandidate.toUpperCase() !== "TBD" &&
+          rawTotal === null
+        ) {
+          if (
+            !/Terms|Validity|Condition|Subtotal|Total|Signature/i.test(text)
+          ) {
             // Architectural Context (Multiline Sub-row Poisoning Prevention):
             // In technical quotes, a specification or warranty note often sits directly below a row:
             // e.g. "Dell PowerEdge R750" followed by "Includes 3-year 24/7 mission-critical warranty".
@@ -426,13 +501,17 @@ export async function extractPdfDocument(
             // Attaching it as a specification suffix to the preceding item preserves semantic fidelity.
             if (
               items.length > 0 &&
-              /^(?:includes|including|warranty|support|with|for|specification|licen|tier|sla|sn|pn|-|\*|\()/i.test(text.trim())
+              /^(?:includes|including|warranty|support|with|for|specification|licen|tier|sla|sn|pn|-|\*|\()/i.test(
+                text.trim(),
+              )
             ) {
               const lastItem = items[items.length - 1];
               lastItem.name = `${lastItem.name} (${text.trim()})`;
               lastItem.normalizedName = normalizeItemName(lastItem.name);
             } else {
-              pendingDescPrefix = (pendingDescPrefix ? pendingDescPrefix + " " : "") + text.trim();
+              pendingDescPrefix =
+                (pendingDescPrefix ? pendingDescPrefix + " " : "") +
+                text.trim();
             }
           }
           continue;
@@ -442,30 +521,44 @@ export async function extractPdfDocument(
         if (/^\d+$/.test(descParts[0])) {
           descParts = descParts.slice(1);
         }
-        
+
         let qty = parseNumericValue(rawQtyCandidate) ?? 1;
         let unitPrice = rawPrice ?? 0;
-        let statedTotal = rawTotal ?? (qty * unitPrice);
+        let statedTotal = rawTotal ?? qty * unitPrice;
 
-        // Check if qty was at column 0 or 1 (e.g. transposed layout [Qty | Description | Price | Total])
-        if (parseNumericValue(rawQtyCandidate) === null && cleanTokens.length >= 4) {
-          if (/^\d+$/.test(cleanTokens[0]) && parseNumericValue(cleanTokens[1]) !== null) {
+        // If rawQtyCandidate is a unit of measure token (e.g. "hrs", "Lot", "pcs", "m")
+        // and the last token in descParts is the actual numeric quantity (e.g. "40" in "40 hrs"):
+        const lastDescToken =
+          descParts.length > 0 ? descParts[descParts.length - 1] : null;
+        const trailingQtyInDesc = lastDescToken
+          ? parseNumericValue(lastDescToken)
+          : null;
+
+        if (
+          parseNumericValue(rawQtyCandidate) === null &&
+          trailingQtyInDesc !== null
+        ) {
+          qty = trailingQtyInDesc;
+          descParts = descParts.slice(0, descParts.length - 1);
+        } else if (
+          parseNumericValue(rawQtyCandidate) === null &&
+          cleanTokens.length >= 4
+        ) {
+          // Check transposed layout [Qty | Description | Price | Total]
+          if (
+            /^\d+$/.test(cleanTokens[0]) &&
+            parseNumericValue(cleanTokens[1]) !== null
+          ) {
             qty = parseNumericValue(cleanTokens[1])!;
             descParts = cleanTokens.slice(2, cleanTokens.length - 2);
-          } else if (parseNumericValue(cleanTokens[0]) !== null) {
+          } else if (
+            parseNumericValue(cleanTokens[0]) !== null &&
+            !/^[1-9]\d?$/.test(cleanTokens[0])
+          ) {
             qty = parseNumericValue(cleanTokens[0])!;
             descParts = cleanTokens.slice(1, cleanTokens.length - 2);
           } else {
-            // rawQtyCandidate was a description descriptor like "2U" or "Cat6" in a 3-column table
             descParts.push(rawQtyCandidate);
-          }
-        } else if (isNaN(Number(rawQtyCandidate)) && descParts.length > 0) {
-          // If rawQtyCandidate was a unit like "hrs" or "Lot" and descParts has the trailing number:
-          const lastDescToken = descParts[descParts.length - 1];
-          const parsedQty = parseNumericValue(lastDescToken);
-          if (parsedQty !== null) {
-            qty = parsedQty;
-            descParts = descParts.slice(0, descParts.length - 1);
           }
         }
 
@@ -479,7 +572,9 @@ export async function extractPdfDocument(
           continue;
         }
         const calculatedTotal = Math.round(qty * unitPrice * 100) / 100;
-        const hasArithmeticError = rawPriceCandidate.toUpperCase() !== "TBD" && Math.abs(calculatedTotal - statedTotal) > 0.01;
+        const hasArithmeticError =
+          rawPriceCandidate.toUpperCase() !== "TBD" &&
+          Math.abs(calculatedTotal - statedTotal) > 0.01;
         const arithmeticDiscrepancy = hasArithmeticError
           ? Math.round((statedTotal - calculatedTotal) * 100) / 100
           : 0;
@@ -538,12 +633,15 @@ export async function extractPdfDocument(
   const isTaxAlreadyIncluded =
     taxAmount !== undefined &&
     statedGrandTotal !== undefined &&
-    Math.abs(statedGrandTotal - (itemsSum - (discountAmount ?? 0) + (shippingAmount ?? 0))) < 0.05;
+    Math.abs(
+      statedGrandTotal -
+        (itemsSum - (discountAmount ?? 0) + (shippingAmount ?? 0)),
+    ) < 0.05;
 
   const taxInclusive =
     isTaxAlreadyIncluded ||
     /(?:VAT|Tax)\s*(?:Included|Inclusive)|Gross|Inclusive of (?:VAT|Tax)/i.test(
-      allLines.map((l) => l.text).join(" ")
+      allLines.map((l) => l.text).join(" "),
     );
 
   let expectedGrandTotal = itemsSum;

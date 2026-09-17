@@ -43,11 +43,7 @@ export type DiffType =
 export type DiffSeverity = "CRITICAL" | "WARNING" | "INFO";
 
 export type DiffCategory =
-  | "SCOPE"
-  | "PRICING"
-  | "SCHEDULE"
-  | "AUDIT_RISK"
-  | "FORMATTING";
+  "SCOPE" | "PRICING" | "SCHEDULE" | "AUDIT_RISK" | "FORMATTING";
 
 export type CommercialDiff = {
   id: string;
@@ -78,7 +74,12 @@ export type ExtractedDocument = {
   calculatedGrandTotal: number;
   hasGrandTotalDiscrepancy: boolean;
   grandTotalDiscrepancy?: number;
-  rawLines: Array<{ page: number; lineNumber: number; text: string; bbox: BoundingBox }>;
+  rawLines: Array<{
+    page: number;
+    lineNumber: number;
+    text: string;
+    bbox: BoundingBox;
+  }>;
   totalPages: number;
   subtotal?: number;
   discountAmount?: number;
@@ -115,6 +116,18 @@ export type AuditReport = {
   diffs: CommercialDiff[];
   telemetry: TelemetryData;
   clarificationQuestions?: string[];
-  doc1Summary?: { title: string; totalItems: number; date?: string; deliveryDate?: string };
-  doc2Summary?: { title: string; totalItems: number; date?: string; deliveryDate?: string };
+  doc1Currency?: string;
+  doc2Currency?: string;
+  doc1Summary?: {
+    title: string;
+    totalItems: number;
+    date?: string;
+    deliveryDate?: string;
+  };
+  doc2Summary?: {
+    title: string;
+    totalItems: number;
+    date?: string;
+    deliveryDate?: string;
+  };
 };

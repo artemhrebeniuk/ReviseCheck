@@ -28,7 +28,7 @@ import {
   LayoutList,
   Table as TableIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 
 interface DiffMatrixProps {
@@ -37,9 +37,14 @@ interface DiffMatrixProps {
   onSelectDiff: (diff: CommercialDiff) => void;
 }
 
-type TabType = "all" | "substantive" | "arithmetic" | "scope" | "pricing" | "formatting";
+type TabType =
+  "all" | "substantive" | "arithmetic" | "scope" | "pricing" | "formatting";
 
-export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps) {
+export function DiffMatrix({
+  diffs,
+  activeDiff,
+  onSelectDiff,
+}: DiffMatrixProps) {
   const [activeTab, setActiveTab] = useState<TabType>("substantive");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -113,9 +118,15 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
   const filteredDiffs = diffs.filter((d) => {
     // Tab filter
     if (activeTab === "substantive" && !d.isSubstantive) return false;
-    if (activeTab === "arithmetic" && d.type !== "ARITHMETIC_ERROR") return false;
+    if (activeTab === "arithmetic" && d.type !== "ARITHMETIC_ERROR")
+      return false;
     if (activeTab === "scope" && d.category !== "SCOPE") return false;
-    if (activeTab === "pricing" && d.category !== "PRICING" && d.type !== "ARITHMETIC_ERROR") return false;
+    if (
+      activeTab === "pricing" &&
+      d.category !== "PRICING" &&
+      d.type !== "ARITHMETIC_ERROR"
+    )
+      return false;
     if (activeTab === "formatting" && d.isSubstantive) return false;
 
     // Search query
@@ -185,27 +196,41 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
   };
 
   const renderVarianceDelta = (diff: CommercialDiff) => {
-    if (diff.type === "PRICE_CHANGE" && diff.originalValue !== undefined && diff.revisedValue !== undefined) {
+    if (
+      diff.type === "PRICE_CHANGE" &&
+      diff.originalValue !== undefined &&
+      diff.revisedValue !== undefined
+    ) {
       return (
         <div className="font-mono text-sm tabular-nums">
           <span className="text-gray-400 line-through mr-1.5">
-            {String(diff.originalValue).startsWith("$") || String(diff.originalValue).startsWith("€")
+            {String(diff.originalValue).startsWith("$") ||
+            String(diff.originalValue).startsWith("€")
               ? diff.originalValue
               : `$${diff.originalValue}`}
           </span>
           <span className="text-gray-900 font-bold">
-            {String(diff.revisedValue).startsWith("$") || String(diff.revisedValue).startsWith("€")
+            {String(diff.revisedValue).startsWith("$") ||
+            String(diff.revisedValue).startsWith("€")
               ? diff.revisedValue
               : `$${diff.revisedValue}`}
           </span>
         </div>
       );
     }
-    if (diff.type === "QTY_CHANGE" && diff.originalValue !== undefined && diff.revisedValue !== undefined) {
+    if (
+      diff.type === "QTY_CHANGE" &&
+      diff.originalValue !== undefined &&
+      diff.revisedValue !== undefined
+    ) {
       return (
         <div className="font-mono text-sm tabular-nums">
-          <span className="text-gray-400 line-through mr-1.5">{diff.originalValue} units</span>
-          <span className="text-gray-900 font-bold">{diff.revisedValue} units</span>
+          <span className="text-gray-400 line-through mr-1.5">
+            {diff.originalValue} units
+          </span>
+          <span className="text-gray-900 font-bold">
+            {diff.revisedValue} units
+          </span>
         </div>
       );
     }
@@ -217,43 +242,65 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
       );
     }
     if (diff.type === "SCOPE_REMOVED" && diff.delta !== undefined) {
-      return <span className="font-mono text-sm text-orange-700 font-semibold">{diff.delta}</span>;
+      return (
+        <span className="font-mono text-sm text-orange-700 font-semibold">
+          {diff.delta}
+        </span>
+      );
     }
     if (diff.type === "SCOPE_ADDED" && diff.delta !== undefined) {
-      return <span className="font-mono text-sm text-emerald-700 font-semibold">{diff.delta}</span>;
+      return (
+        <span className="font-mono text-sm text-emerald-700 font-semibold">
+          {diff.delta}
+        </span>
+      );
     }
     if (diff.type === "DATE_CHANGE") {
-      return <span className="text-sm text-purple-700 font-semibold">Timeline Shift</span>;
+      return (
+        <span className="text-sm text-purple-700 font-semibold">
+          Timeline Shift
+        </span>
+      );
     }
     if (diff.type === "RENAMED_ITEM") {
-      return <span className="text-sm text-purple-700 font-semibold">Scope Matched</span>;
+      return (
+        <span className="text-sm text-purple-700 font-semibold">
+          Scope Matched
+        </span>
+      );
     }
     if (diff.type === "REORDERED") {
       return <span className="text-sm text-gray-500">{diff.revisedValue}</span>;
     }
-    return <span className="text-sm text-gray-400">{diff.delta ? String(diff.delta) : "—"}</span>;
+    return (
+      <span className="text-sm text-gray-400">
+        {diff.delta ? String(diff.delta) : "—"}
+      </span>
+    );
   };
 
   const substantiveCount = diffs.filter((d) => d.isSubstantive).length;
   const formattingCount = diffs.filter((d) => !d.isSubstantive).length;
-  const arithmeticCount = diffs.filter((d) => d.type === "ARITHMETIC_ERROR").length;
+  const arithmeticCount = diffs.filter(
+    (d) => d.type === "ARITHMETIC_ERROR",
+  ).length;
 
   return (
     <div className="case-study-card p-4 sm:p-6 md:p-8 space-y-5 bg-white border border-gray-200 rounded-2xl shadow-sm">
-      
       {/* Top Header, Mode Switcher & Search */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-gray-900 tracking-tight">
+            <h3 className="text-xl font-bold tracking-tight text-gray-900 font-display">
               Differential Matrix
             </h3>
-            <span className="font-mono text-sm font-bold px-2.5 py-0.5 rounded-lg bg-gray-100 text-gray-700 border border-gray-200">
+            <span className="font-sans text-sm font-bold px-2.5 py-0.5 rounded-lg bg-gray-100 text-gray-700 border border-gray-200">
               {diffs.length} Total Diffs
             </span>
           </div>
           <p className="text-sm text-gray-500 font-normal mt-0.5">
-            Select any item to pin and highlight exact bounding coordinates in Document A and Document B.
+            Select any item to pin and highlight exact bounding coordinates in
+            Document A and Document B.
           </p>
         </div>
 
@@ -310,9 +357,13 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
             }`}
           >
             <span>Substantive Alterations</span>
-            <span className={`font-mono text-xs sm:text-sm px-2 py-0.5 rounded-full ${
-              activeTab === "substantive" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
-            }`}>
+            <span
+              className={`font-mono text-sm sm:text-base px-2 py-0.5 rounded-full ${
+                activeTab === "substantive"
+                  ? "bg-white/20 text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
               {substantiveCount}
             </span>
           </button>
@@ -326,9 +377,13 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
             }`}
           >
             <span>Formatting Immunity</span>
-            <span className={`font-mono text-xs sm:text-sm px-2 py-0.5 rounded-full ${
-              activeTab === "formatting" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
-            }`}>
+            <span
+              className={`font-mono text-sm sm:text-base px-2 py-0.5 rounded-full ${
+                activeTab === "formatting"
+                  ? "bg-white/20 text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
               {formattingCount}
             </span>
           </button>
@@ -343,9 +398,13 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
               }`}
             >
               <span>Arithmetic Errors</span>
-              <span className={`font-mono text-xs sm:text-sm px-2 py-0.5 rounded-full font-bold ${
-                activeTab === "arithmetic" ? "bg-white/20 text-white" : "bg-rose-200 text-rose-900"
-              }`}>
+              <span
+                className={`font-mono text-sm sm:text-base px-2 py-0.5 rounded-full font-bold ${
+                  activeTab === "arithmetic"
+                    ? "bg-white/20 text-white"
+                    : "bg-rose-200 text-rose-900"
+                }`}
+              >
                 {arithmeticCount}
               </span>
             </button>
@@ -393,7 +452,9 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
           >
             <ChevronsUpDown className="h-4 w-4" />
             <span>
-              {expandedIds.size >= filteredDiffs.length ? "Collapse All" : "Expand All"}
+              {expandedIds.size >= filteredDiffs.length
+                ? "Collapse All"
+                : "Expand All"}
             </span>
           </button>
         )}
@@ -427,7 +488,9 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                     className="w-full text-left p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none bg-white hover:bg-gray-50/80 transition active:bg-gray-50"
                   >
                     <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                      <span className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${badge.bg}`}>
+                      <span
+                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${badge.bg}`}
+                      >
                         {badge.icon}
                         <span>{badge.label}</span>
                       </span>
@@ -437,7 +500,7 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                             {diff.title}
                           </span>
                           {!diff.isSubstantive && (
-                            <span className="font-mono text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200 uppercase shrink-0">
+                            <span className="font-sans text-sm sm:text-base font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200 uppercase shrink-0">
                               Non-Substantive
                             </span>
                           )}
@@ -451,7 +514,9 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                       </div>
                       <div className="tactile-btn flex items-center gap-1.5 text-sm font-medium text-gray-600 bg-gray-100/90 border border-gray-200 px-2.5 py-1 rounded-lg">
                         <span>{isExpanded ? "Collapse" : "Expand"}</span>
-                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -460,7 +525,7 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                   {isExpanded && (
                     <div className="px-5 pb-5 pt-3 space-y-4 border-t border-gray-100 bg-gray-50/60">
                       <div>
-                        <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-600 block mb-1.5">
+                        <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-gray-600 block mb-1.5">
                           Substantive Modification Details
                         </span>
                         <p className="text-sm sm:text-base text-gray-800 leading-relaxed font-normal bg-white p-3.5 rounded-xl border border-gray-200/90 shadow-2xs">
@@ -471,21 +536,27 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                       {/* Coordinates & Quick Action */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                         <div className="space-y-1.5">
-                          <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-600 block">
+                          <span className="text-sm sm:text-base font-bold uppercase tracking-wider text-gray-600 block">
                             Dual Source Coordinate Anchors
                           </span>
                           <div className="flex flex-wrap items-center gap-2 font-mono text-sm">
-                            <span className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 font-medium text-gray-800 shadow-2xs">
-                              Doc A: P.{diff.originalLocation?.page ?? 1}, L.{diff.originalLocation?.lineNumber ?? 1}
+                            <span className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 font-semibold text-slate-800 shadow-2xs">
+                              Doc A: P.{diff.originalLocation?.page ?? 1}, L.
+                              {diff.originalLocation?.lineNumber ?? 1}
                               {diff.type === "SCOPE_ADDED" && (
-                                <span className="ml-1 text-xs text-amber-700 font-sans font-normal">(Doc A Header Anchor)</span>
+                                <span className="ml-1 text-sm text-amber-700 font-sans font-normal">
+                                  (Doc A Header Anchor)
+                                </span>
                               )}
                             </span>
                             <ArrowRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                            <span className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 font-medium text-gray-800 shadow-2xs">
-                              Doc B: P.{diff.revisedLocation?.page ?? 1}, L.{diff.revisedLocation?.lineNumber ?? 1}
+                            <span className="px-3 py-1.5 rounded-lg bg-blue-50/60 border border-blue-200 font-semibold text-blue-900 shadow-2xs">
+                              Doc B: P.{diff.revisedLocation?.page ?? 1}, L.
+                              {diff.revisedLocation?.lineNumber ?? 1}
                               {diff.type === "SCOPE_REMOVED" && (
-                                <span className="ml-1 text-xs text-amber-700 font-sans font-normal">(Doc B Header Anchor)</span>
+                                <span className="ml-1 text-sm text-rose-700 font-sans font-normal">
+                                  (Doc B Header Anchor)
+                                </span>
                               )}
                             </span>
                           </div>
@@ -495,9 +566,13 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                           onClick={(e) => {
                             e.stopPropagation();
                             onSelectDiff(diff);
-                            const viewer = document.getElementById("pdf-dual-viewer");
+                            const viewer =
+                              document.getElementById("pdf-dual-viewer");
                             if (viewer) {
-                              viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+                              viewer.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
                             }
                           }}
                           className={`tactile-btn shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xs transition active:scale-95 cursor-pointer ${
@@ -507,7 +582,11 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                           }`}
                         >
                           <Crosshair className="h-4 w-4" />
-                          <span>{isSelected ? "Coordinates Active" : "Inspect in PDF Canvas"}</span>
+                          <span>
+                            {isSelected
+                              ? "Coordinates Active"
+                              : "Inspect in PDF Canvas"}
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -543,17 +622,24 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
             >
               <table className="w-full text-left border-collapse bg-white min-w-170">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 font-bold text-gray-600 uppercase tracking-wider text-xs sm:text-sm">
+                  <tr className="bg-gray-50 border-b border-gray-200 font-bold text-gray-600 uppercase tracking-wider text-sm sm:text-base">
                     <th className="py-3.5 px-4">Change Classification</th>
-                    <th className="py-3.5 px-4">Commercial Item &amp; Substantive Details</th>
+                    <th className="py-3.5 px-4">
+                      Commercial Item &amp; Substantive Details
+                    </th>
                     <th className="py-3.5 px-4 text-right">Variance Delta</th>
-                    <th className="py-3.5 px-4">Dual Source Coordinate Anchors</th>
+                    <th className="py-3.5 px-4">
+                      Dual Source Coordinate Anchors
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredDiffs.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-gray-500 font-mono text-sm">
+                      <td
+                        colSpan={4}
+                        className="py-8 text-center text-gray-500 font-mono text-sm"
+                      >
                         No differences match the selected filter category.
                       </td>
                     </tr>
@@ -574,7 +660,9 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                         >
                           {/* Badge */}
                           <td className="py-4 px-4 whitespace-nowrap align-top">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${badge.bg}`}>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${badge.bg}`}
+                            >
                               {badge.icon}
                               <span>{badge.label}</span>
                             </span>
@@ -587,7 +675,7 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                                 {diff.title}
                               </span>
                               {!diff.isSubstantive && (
-                                <span className="font-mono text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200 uppercase shrink-0">
+                                <span className="font-sans text-sm sm:text-base font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200 uppercase shrink-0">
                                   Non-Substantive
                                 </span>
                               )}
@@ -605,13 +693,15 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
                           {/* Dual Source Anchors */}
                           <td className="py-4 px-4 align-top whitespace-nowrap font-mono text-sm">
                             <div className="flex items-center gap-2 text-gray-600">
-                              <span className="px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200 font-medium text-gray-800">
-                                Doc A: P.{diff.originalLocation?.page ?? 1}, L.{diff.originalLocation?.lineNumber ?? 1}
+                              <span className="px-2.5 py-1 rounded-md bg-slate-50 border border-slate-300 font-semibold text-slate-800">
+                                Doc A: P.{diff.originalLocation?.page ?? 1}, L.
+                                {diff.originalLocation?.lineNumber ?? 1}
                                 {diff.type === "SCOPE_ADDED" && " (Anchor)"}
                               </span>
                               <ArrowRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                              <span className="px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200 font-medium text-gray-800">
-                                Doc B: P.{diff.revisedLocation?.page ?? 1}, L.{diff.revisedLocation?.lineNumber ?? 1}
+                              <span className="px-2.5 py-1 rounded-md bg-blue-50/60 border border-blue-200 font-semibold text-blue-900">
+                                Doc B: P.{diff.revisedLocation?.page ?? 1}, L.
+                                {diff.revisedLocation?.lineNumber ?? 1}
                                 {diff.type === "SCOPE_REMOVED" && " (Anchor)"}
                               </span>
                             </div>
@@ -639,7 +729,6 @@ export function DiffMatrix({ diffs, activeDiff, onSelectDiff }: DiffMatrixProps)
           </div>
         </div>
       )}
-
     </div>
   );
 }

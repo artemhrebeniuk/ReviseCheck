@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { 
-  AlertTriangle, 
-  CheckCircle2, 
-  HelpCircle, 
-  ShieldCheck, 
-  Server, 
+import {
+  AlertTriangle,
+  CheckCircle2,
+  HelpCircle,
+  ShieldCheck,
+  Server,
   Cloud,
   TrendingDown,
   CalendarClock,
@@ -15,7 +15,7 @@ import {
   ArrowRight,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 
 export type PresetType =
@@ -161,98 +161,12 @@ export function PresetSelector({
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-600">
+    <div className="space-y-3 flex flex-col flex-1 min-h-0">
+      <div className="flex items-center justify-between gap-2 shrink-0">
+        <h4 className="text-sm sm:text-base font-bold uppercase tracking-wider text-gray-600">
           Benchmark Suites ({suites.length})
         </h4>
-        <button
-          onClick={() => setShowUploadPanel(!showUploadPanel)}
-          className="tactile-btn inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer shrink-0 active:scale-95"
-        >
-          <Upload className="h-4 w-4" />
-          <span>{showUploadPanel ? "Close Upload" : "Upload Custom"}</span>
-        </button>
       </div>
-
-      {/* Custom Upload Drawer */}
-      {showUploadPanel && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-gray-900">Upload Custom PDF Proposals</span>
-            <span className="text-xs sm:text-sm font-mono text-gray-500">Max 3 Pages • 10 Items</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5">
-            <div 
-              onClick={() => file1Ref.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const f = e.dataTransfer.files?.[0];
-                if (f && f.type === "application/pdf") setFile1(f);
-              }}
-              className="tactile-btn border border-dashed border-gray-300 rounded-xl p-3.5 bg-white text-center cursor-pointer hover:border-indigo-400 active:scale-[0.99] transition flex flex-col items-center justify-center min-h-20"
-            >
-              <input
-                ref={file1Ref}
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={(e) => setFile1(e.target.files?.[0] || null)}
-              />
-              <span className="text-sm font-medium text-gray-700 truncate flex items-center justify-center gap-1.5">
-                {file1 ? (
-                  <>
-                    <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Doc A: {file1.name}</span>
-                  </>
-                ) : (
-                  "Click or drop Document A (Original PDF)"
-                )}
-              </span>
-            </div>
-
-            <div 
-              onClick={() => file2Ref.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const f = e.dataTransfer.files?.[0];
-                if (f && f.type === "application/pdf") setFile2(f);
-              }}
-              className="tactile-btn border border-dashed border-gray-300 rounded-xl p-3.5 bg-white text-center cursor-pointer hover:border-indigo-400 active:scale-[0.99] transition flex flex-col items-center justify-center min-h-20"
-            >
-              <input
-                ref={file2Ref}
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={(e) => setFile2(e.target.files?.[0] || null)}
-              />
-              <span className="text-sm font-medium text-gray-700 truncate flex items-center justify-center gap-1.5">
-                {file2 ? (
-                  <>
-                    <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Doc B: {file2.name}</span>
-                  </>
-                ) : (
-                  "Click or drop Document B (Revised PDF)"
-                )}
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleCustomSubmit}
-            disabled={!file1 || !file2 || isLoading}
-            className="tactile-btn w-full py-2.5 px-3.5 rounded-xl bg-gray-900 hover:bg-gray-800 disabled:opacity-40 text-white font-semibold text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98]"
-          >
-            <FileUp className="h-4 w-4" />
-            <span>{isLoading ? "Analyzing Proposals..." : "Audit Custom Proposals"}</span>
-          </button>
-        </div>
-      )}
 
       {/* MOBILE & TABLET: Space-Efficient Horizontal Scroller with Scroll Cues */}
       <div className="relative xl:hidden">
@@ -287,9 +201,13 @@ export function PresetSelector({
                     : "bg-white border-gray-200 text-gray-700 hover:border-gray-300 active:bg-gray-50"
                 }`}
               >
-                <span className={`font-mono text-xs sm:text-sm font-bold px-2 py-0.5 rounded ${
-                  isSelected ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
-                }`}>
+                <span
+                  className={`font-mono text-sm sm:text-base font-bold px-2 py-0.5 rounded ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
                   {suite.index}
                 </span>
                 <span className="text-sm font-semibold whitespace-nowrap">
@@ -315,42 +233,54 @@ export function PresetSelector({
       </div>
 
       {/* DESKTOP: Full Vertical Suite Cards List */}
-      <div className="hidden xl:block space-y-2.5 max-h-125 overflow-y-auto pr-1">
-        {suites.map((suite) => {
-          const isSelected = currentPreset === suite.id;
+      <div className="hidden xl:flex relative flex-1 min-h-0">
+        <div className="w-full space-y-2.5 overflow-y-auto pr-1 pb-12 scrollbar-thin mask-[linear-gradient(to_bottom,black_calc(100%-40px),transparent_100%)]">
+          {suites.map((suite) => {
+            const isSelected = currentPreset === suite.id;
 
-          return (
-            <button
-              key={suite.id}
-              onClick={() => onSelectPreset(suite.id)}
-              disabled={isLoading}
-              className={`tactile-btn w-full text-left p-4 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
-                isSelected
-                  ? "bg-gray-900 border-gray-900 text-white shadow-sm ring-1 ring-gray-900"
-                  : "bg-gray-50/80 hover:bg-gray-100/90 border-gray-200/90 hover:border-gray-300 text-gray-600"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className={`font-mono text-xs sm:text-sm font-bold px-2 py-0.5 rounded ${
-                    isSelected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-800"
-                  }`}>
-                    {suite.index}
+            return (
+              <button
+                key={suite.id}
+                onClick={() => onSelectPreset(suite.id)}
+                disabled={isLoading}
+                className={`tactile-btn w-full text-left p-4 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
+                  isSelected
+                    ? "bg-gray-900 border-gray-900 text-white shadow-sm ring-1 ring-gray-900"
+                    : "bg-gray-50/80 hover:bg-gray-100/90 border-gray-200/90 hover:border-gray-300 text-gray-600"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`font-mono text-sm sm:text-base font-bold px-2 py-0.5 rounded ${
+                        isSelected
+                          ? "bg-white/20 text-white"
+                          : "bg-gray-200 text-gray-800"
+                      }`}
+                    >
+                      {suite.index}
+                    </span>
+                    <h5
+                      className={`font-bold text-base truncate ${isSelected ? "text-white" : "text-gray-900"}`}
+                    >
+                      {suite.name}
+                    </h5>
+                  </div>
+                  <span
+                    className={`text-sm sm:text-base font-sans font-medium shrink-0 ${isSelected ? "text-gray-300" : "text-gray-500"}`}
+                  >
+                    {suite.tag}
                   </span>
-                  <h5 className={`font-bold text-base truncate ${isSelected ? "text-white" : "text-gray-900"}`}>
-                    {suite.name}
-                  </h5>
                 </div>
-                <span className={`text-xs sm:text-sm font-mono shrink-0 ${isSelected ? "text-gray-300" : "text-gray-500"}`}>
-                  {suite.tag}
-                </span>
-              </div>
-              <p className={`text-sm mt-2 line-clamp-2 leading-relaxed font-normal ${isSelected ? "text-gray-300" : "text-gray-500"}`}>
-                {suite.desc}
-              </p>
-            </button>
-          );
-        })}
+                <p
+                  className={`text-sm mt-2 line-clamp-2 leading-relaxed font-normal ${isSelected ? "text-gray-300" : "text-gray-500"}`}
+                >
+                  {suite.desc}
+                </p>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

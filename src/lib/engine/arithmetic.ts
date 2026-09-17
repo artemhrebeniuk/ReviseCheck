@@ -48,7 +48,12 @@ export function auditDocumentArithmetic(
   currency: string = "USD",
   docTitle: string = "Document",
   docLocationFallback?: SourceLocation,
-  adjustments?: { discountAmount?: number; taxAmount?: number; taxInclusive?: boolean; shippingAmount?: number }
+  adjustments?: {
+    discountAmount?: number;
+    taxAmount?: number;
+    taxInclusive?: boolean;
+    shippingAmount?: number;
+  },
 ): ArithmeticAuditResult {
   const lineErrors: ArithmeticAuditResult["lineErrors"] = [];
   let calculatedSum = new Decimal(0);
@@ -58,6 +63,17 @@ export function auditDocumentArithmetic(
     const unitPrice = new Decimal(item.unitPrice);
     const statedTotal = new Decimal(item.statedTotal);
 
+    // If unit price is indeterminate or zero (e.g. "TBD" rate or lump-sum deliverable),
+    // and statedTotal > 0, treat stated total as valid lump-sum rather than 0 * 0 = 0 error
+    if (
+      item.unitPrice === 0 &&
+      item.statedTotal > 0 &&
+      !item.hasArithmeticError
+    ) {
+      calculatedSum = calculatedSum.plus(statedTotal);
+      continue;
+    }
+
     const calculatedLineTotal = qty.times(unitPrice);
     calculatedSum = calculatedSum.plus(calculatedLineTotal);
 
@@ -66,6 +82,8 @@ export function auditDocumentArithmetic(
       const calcNum = calculatedLineTotal.toNumber();
       const statedNum = statedTotal.toNumber();
       const discNum = diff.toNumber();
+      const isUnderstated = discNum < 0;
+      const discWord = isUnderstated ? "Understated" : "Overstated";
 
       const commercialDiff: CommercialDiff = {
         id: `arith-err-${item.id}`,
@@ -75,11 +93,11 @@ export function auditDocumentArithmetic(
         title: `Arithmetic Discrepancy in Line Item: "${item.name}"`,
         description: `Line item math does not reconcile: ${item.qty} × ${formatCurrency(
           item.unitPrice,
-          currency
+          currency,
         )} equals ${formatCurrency(calcNum, currency)}, but source states ${formatCurrency(
           statedNum,
-          currency
-        )}. Understated by ${formatCurrency(Math.abs(discNum), currency)}.`,
+          currency,
+        )}. ${discWord} by ${formatCurrency(Math.abs(discNum), currency)}.`,
         originalValue: formatCurrency(calcNum, currency),
         revisedValue: formatCurrency(statedNum, currency),
         delta: formatCurrency(discNum, currency),
@@ -122,9 +140,44 @@ export function auditDocumentArithmetic(
       hasGrandTotalDiscrepancy = true;
       grandTotalDiscrepancy = sumDiff.toNumber();
 
-      const adjNote = adjustments?.taxAmount || adjustments?.discountAmount
-        ? " (reconciled with discounts/taxes)"
-        : "";
+      const adjNote =
+        adjustments?.taxAmount || adjustments?.discountAmount
+          ? " (reconciled with discounts/taxes)"
+          : "";
+
+      const statedLinesSum = items.reduce(
+        (acc, it) => acc.plus(new Decimal(it.statedTotal)),
+        new Decimal(0),
+      );
+      const unallocatedMargin = stated.minus(statedLinesSum).toNumber();
+      const hasLineErrors = items.some((it) => it.hasArithmeticError);
+
+      let descriptionText = `The sum of line items (${formatCurrency(
+        expectedSum.toNumber(),
+        currency,
+      )})${adjNote} does not match the stated Grand Total (${formatCurrency(
+        statedGrandTotal,
+        currency,
+      )}). Discrepancy of ${formatCurrency(Math.abs(grandTotalDiscrepancy), currency)}.`;
+
+      if (hasLineErrors && Math.abs(unallocatedMargin) > 0.01) {
+        descriptionText = `Stated Grand Total (${formatCurrency(
+          statedGrandTotal,
+          currency,
+        )}) contains +${formatCurrency(
+          Math.abs(unallocatedMargin),
+          currency,
+        )} unallocated inflation over stated line items (${formatCurrency(
+          statedLinesSum.toNumber(),
+          currency,
+        )}), totaling ${formatCurrency(
+          Math.abs(grandTotalDiscrepancy),
+          currency,
+        )} net arithmetic variance against calculated sum (${formatCurrency(
+          expectedSum.toNumber(),
+          currency,
+        )}).`;
+      }
 
       grandTotalDiff = {
         id: `arith-err-grand-total`,
@@ -132,13 +185,7 @@ export function auditDocumentArithmetic(
         severity: "CRITICAL",
         category: "AUDIT_RISK",
         title: `Grand Total Arithmetic Mismatch in ${docTitle}`,
-        description: `The sum of line items (${formatCurrency(
-          expectedSum.toNumber(),
-          currency
-        )})${adjNote} does not match the stated Grand Total (${formatCurrency(
-          statedGrandTotal,
-          currency
-        )}). Discrepancy of ${formatCurrency(Math.abs(grandTotalDiscrepancy), currency)}.`,
+        description: descriptionText,
         originalValue: formatCurrency(expectedSum.toNumber(), currency),
         revisedValue: formatCurrency(statedGrandTotal, currency),
         delta: formatCurrency(grandTotalDiscrepancy, currency),
