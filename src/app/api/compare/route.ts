@@ -92,59 +92,7 @@ function loadPresetBuffers(
   }
 }
 
-async function warmPresetCache() {
-  try {
-    const samplesDir = path.join(process.cwd(), "public", "samples");
-    const presets = [
-      "standard",
-      "formatting",
-      "ambiguous",
-      "clean_approval",
-      "hyperscale_3page",
-      "cloud_migration",
-      "arithmetic_inflation",
-      "milestone_schedule",
-    ];
-    for (const p of presets) {
-      const buffers = loadPresetBuffers(p, samplesDir);
-      const hash = computeContentHash(buffers.orig, buffers.rev);
-      if (contentCache.has(hash)) continue;
-      const [docOriginal, docRevised] = await Promise.all([
-        extractPdfDocument(buffers.orig),
-        extractPdfDocument(buffers.rev),
-      ]);
-      const report = await compareCommercialOffersAsync(
-        docOriginal,
-        docRevised,
-      );
-      contentCache.set(hash, {
-        success: true,
-        report,
-        docOriginal: {
-          title: docOriginal.title,
-          currency: docOriginal.currency,
-          itemsCount: docOriginal.items.length,
-          totalPages: docOriginal.totalPages,
-          deliveryDate: docOriginal.deliveryDate,
-          statedTotal: docOriginal.statedGrandTotal,
-        },
-        docRevised: {
-          title: docRevised.title,
-          currency: docRevised.currency,
-          itemsCount: docRevised.items.length,
-          totalPages: docRevised.totalPages,
-          deliveryDate: docRevised.deliveryDate,
-          statedTotal: docRevised.statedGrandTotal,
-        },
-      });
-    }
-  } catch {
-    // Non-blocking fallback
-  }
-}
-
-// Automatically warm in-memory cache
-warmPresetCache().catch(() => {});
+// Cache removed to prevent Vercel Lambda initialization timeouts
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
