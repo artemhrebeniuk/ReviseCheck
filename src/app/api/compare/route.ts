@@ -5,6 +5,8 @@ import crypto from "crypto";
 import { extractPdfDocument } from "@/lib/pdf/extractor";
 import { compareCommercialOffersAsync } from "@/lib/engine/diff";
 
+export const maxDuration = 60; // Allow 60s for Together AI processing on Vercel
+
 // High-performance server-side in-memory cache keyed by MD5 content hash
 const contentCache = new Map<string, any>();
 
