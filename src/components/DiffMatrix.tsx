@@ -53,16 +53,7 @@ export function DiffMatrix({
   const [canScrollTableLeft, setCanScrollTableLeft] = useState(false);
   const [canScrollTableRight, setCanScrollTableRight] = useState(false);
 
-  // Initialize view mode based on screen width
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (window.innerWidth >= 1024) {
-        setViewMode("table");
-      } else {
-        setViewMode("cards");
-      }
-    }
-  }, []);
+
 
   // Check horizontal table scroll
   const checkTableScroll = () => {
