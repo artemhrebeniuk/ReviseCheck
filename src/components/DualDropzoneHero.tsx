@@ -372,7 +372,7 @@ export function DualDropzoneHero({
               <button
                 type="button"
                 onClick={handleSwap}
-                disabled={!file1 && !file2}
+                disabled={isLoading || !file1 || !file2}
                 className="tactile-btn group p-3.5 rounded-2xl bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 hover:text-gray-900 shadow-sm transition active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex flex-col items-center gap-1 shrink-0"
                 title="Quick Swap: Switch Doc A and Doc B and re-run comparison"
                 aria-label="Swap Document A and Document B"
