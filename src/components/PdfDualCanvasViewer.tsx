@@ -27,8 +27,17 @@ interface PdfDualCanvasViewerProps {
  * Ensures that the PDF.js worker is initialized only once and documents are cached 
  * in memory to allow for instant page transitions.
  */
+interface CachedPageBitmap {
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  viewportWidth: number;
+  viewportHeight: number;
+}
+
 let cachedPdfJsPromise: Promise<any> | null = null;
 const globalPdfDocCache = new Map<string, Promise<any>>();
+const globalPageBitmapCache = new Map<string, Promise<CachedPageBitmap>>();
 
 function getPdfJs() {
   if (!cachedPdfJsPromise) {
@@ -59,6 +68,63 @@ function getLoadedPdfDoc(url: string) {
     globalPdfDocCache.set(url, docPromise);
   }
   return globalPdfDocCache.get(url)!;
+}
+
+/**
+ * Renders a PDF page to an offscreen canvas and caches the resulting bitmap.
+ * Eliminates canvas clearing flickers and makes page transitions 100% instantaneous.
+ */
+async function getOrRenderPageBitmap(
+  pdfDoc: any,
+  url: string,
+  pageNum: number,
+  scale: number
+): Promise<CachedPageBitmap> {
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  const cacheKey = `${url}-${pageNum}-${scale}-${dpr}`;
+
+  if (globalPageBitmapCache.has(cacheKey)) {
+    return globalPageBitmapCache.get(cacheKey)!;
+  }
+
+  const renderPromise = (async () => {
+    const page = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+    const offscreen = document.createElement("canvas");
+    offscreen.width = Math.floor(viewport.width * dpr);
+    offscreen.height = Math.floor(viewport.height * dpr);
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) throw new Error("Could not get 2d context for offscreen canvas");
+
+    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null;
+    const renderContext = {
+      canvasContext: ctx,
+      transform: transform,
+      viewport: viewport,
+    };
+    await page.render(renderContext).promise;
+
+    return {
+      canvas: offscreen,
+      width: offscreen.width,
+      height: offscreen.height,
+      viewportWidth: viewport.width,
+      viewportHeight: viewport.height,
+    };
+  })();
+
+  globalPageBitmapCache.set(cacheKey, renderPromise);
+  return renderPromise;
+}
+
+/**
+ * Non-blocking background pre-fetcher that pre-renders all pages of a document.
+ */
+function prefetchAndRenderAllPages(pdfDoc: any, url: string, scale: number) {
+  const numPages = pdfDoc?.numPages || 1;
+  for (let p = 1; p <= numPages; p++) {
+    getOrRenderPageBitmap(pdfDoc, url, p, scale).catch(() => {});
+  }
 }
 
 export function PdfDualCanvasViewer({
@@ -140,7 +206,7 @@ export function PdfDualCanvasViewer({
   const renderTaskOrigRef = useRef<any>(null);
   const renderTaskRevRef = useRef<any>(null);
 
-  // Render Original PDF with instant cache & renderTask cancellation
+  // Render Original PDF with instant cache & double-buffering
   useEffect(() => {
     let isCancelled = false;
 
@@ -154,44 +220,30 @@ export function PdfDualCanvasViewer({
       }
 
       try {
-        if (renderTaskOrigRef.current) {
-          try {
-            renderTaskOrigRef.current.cancel();
-          } catch {
-            // Ignore cancel error
-          }
-        }
-
         const pdfDoc = await getLoadedPdfDoc(originalPdfUrl);
         if (isCancelled) return;
 
         setTotalOrigPages(pdfDoc.numPages);
+        prefetchAndRenderAllPages(pdfDoc, originalPdfUrl, scale);
+
         const validPageNum = Math.min(Math.max(1, origPageNum), pdfDoc.numPages);
-        const page = await pdfDoc.getPage(validPageNum);
+        const bitmap = await getOrRenderPageBitmap(pdfDoc, originalPdfUrl, validPageNum, scale);
         if (isCancelled) return;
 
-        const viewport = page.getViewport({ scale });
         const canvas = canvasOrigRef.current;
         if (!canvas) return;
 
+        // Atomic swap - visible canvas is ONLY resized and painted once the offscreen bitmap is 100% ready
+        if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+        }
+        setOrigDims({ width: bitmap.viewportWidth, height: bitmap.viewportHeight });
+
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-        setOrigDims({ width: viewport.width, height: viewport.height });
-
-        const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null;
-
-        const renderContext = {
-          canvasContext: ctx,
-          transform: transform,
-          viewport: viewport,
-        };
-        const renderTask = page.render(renderContext);
-        renderTaskOrigRef.current = renderTask;
-        await renderTask.promise;
+        if (ctx) {
+          ctx.drawImage(bitmap.canvas, 0, 0);
+        }
         renderedOrigKeyRef.current = currentKey;
       } catch (err: any) {
         if (err?.name !== "RenderingCancelledException") {
@@ -204,18 +256,11 @@ export function PdfDualCanvasViewer({
 
     return () => {
       isCancelled = true;
-      if (renderTaskOrigRef.current) {
-        try {
-          renderTaskOrigRef.current.cancel();
-        } catch {
-          /** Ignore cancellation */
-        }
-      }
     };
   }, [originalPdfUrl, origPageNum, scale, viewMode]);
 
   /**
-   * Render Revised PDF with instant cache & renderTask cancellation.
+   * Render Revised PDF with instant cache & double-buffering.
    */
   useEffect(() => {
     let isCancelled = false;
@@ -230,44 +275,30 @@ export function PdfDualCanvasViewer({
       }
 
       try {
-        if (renderTaskRevRef.current) {
-          try {
-            renderTaskRevRef.current.cancel();
-          } catch {
-            /** Ignore cancel error */
-          }
-        }
-
         const pdfDoc = await getLoadedPdfDoc(revisedPdfUrl);
         if (isCancelled) return;
 
         setTotalRevPages(pdfDoc.numPages);
+        prefetchAndRenderAllPages(pdfDoc, revisedPdfUrl, scale);
+
         const validPageNum = Math.min(Math.max(1, revPageNum), pdfDoc.numPages);
-        const page = await pdfDoc.getPage(validPageNum);
+        const bitmap = await getOrRenderPageBitmap(pdfDoc, revisedPdfUrl, validPageNum, scale);
         if (isCancelled) return;
 
-        const viewport = page.getViewport({ scale });
         const canvas = canvasRevRef.current;
         if (!canvas) return;
 
+        // Atomic swap - visible canvas is ONLY resized and painted once the offscreen bitmap is 100% ready
+        if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+        }
+        setRevDims({ width: bitmap.viewportWidth, height: bitmap.viewportHeight });
+
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-        setRevDims({ width: viewport.width, height: viewport.height });
-
-        const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null;
-
-        const renderContext = {
-          canvasContext: ctx,
-          transform: transform,
-          viewport: viewport,
-        };
-        const renderTask = page.render(renderContext);
-        renderTaskRevRef.current = renderTask;
-        await renderTask.promise;
+        if (ctx) {
+          ctx.drawImage(bitmap.canvas, 0, 0);
+        }
         renderedRevKeyRef.current = currentKey;
       } catch (err: any) {
         if (err?.name !== "RenderingCancelledException") {
@@ -280,15 +311,65 @@ export function PdfDualCanvasViewer({
 
     return () => {
       isCancelled = true;
-      if (renderTaskRevRef.current) {
-        try {
-          renderTaskRevRef.current.cancel();
-        } catch {
-          /** Ignore cancellation */
-        }
-      }
     };
   }, [revisedPdfUrl, revPageNum, scale, viewMode]);
+
+/**
+ * Resolves contextual pin tag label, color, and dynamic badge width for Baseline Offer (Doc A).
+ */
+function getOrigTagDetails(diff: CommercialDiff | null, page: number): { text: string; color: string; width: number } {
+  if (!diff) return { text: `REF • P.${page}`, color: "#e21022", width: 120 };
+
+  const origStr = diff.originalValue !== undefined && diff.originalValue !== null ? String(diff.originalValue) : "";
+
+  switch (diff.type) {
+    case "SCOPE_ADDED":
+      return { text: "NOT IN BASELINE (SCOPE ANCHOR)", color: "#d97706", width: 235 };
+    case "SCOPE_REMOVED":
+      return { text: "REMOVED FROM SCOPE", color: "#e21022", width: 165 };
+    case "PRICE_CHANGE":
+      return { text: `ORIGINAL: ${origStr || "RATE"}`, color: "#b43d1a", width: Math.max(140, origStr.length * 8 + 80) };
+    case "QTY_CHANGE":
+      return { text: `ORIGINAL: ${origStr || "QTY"} UNITS`, color: "#b43d1a", width: Math.max(150, origStr.length * 8 + 105) };
+    case "RENAMED_ITEM":
+      return { text: "ORIGINAL SPECIFICATION", color: "#b43d1a", width: 180 };
+    case "DATE_CHANGE":
+      return { text: `ORIGINAL DATE: ${origStr}`, color: "#b43d1a", width: Math.max(160, origStr.length * 7.5 + 80) };
+    case "ARITHMETIC_ERROR":
+      return { text: "ORIGINAL CALCULATION", color: "#b43d1a", width: 170 };
+    default:
+      return { text: `REF • PAGE ${page}`, color: "#e21022", width: 120 };
+  }
+}
+
+/**
+ * Resolves contextual pin tag label, color, and dynamic badge width for Candidate Proposal (Doc B).
+ */
+function getRevTagDetails(diff: CommercialDiff | null, page: number): { text: string; color: string; width: number } {
+  if (!diff) return { text: `REVISED • P.${page}`, color: "#86a357", width: 130 };
+
+  const revStr = diff.revisedValue !== undefined && diff.revisedValue !== null ? String(diff.revisedValue) : "";
+  const deltaStr = diff.delta !== undefined && diff.delta !== null ? String(diff.delta) : "";
+
+  switch (diff.type) {
+    case "ARITHMETIC_ERROR":
+      return { text: `MATH ERROR: STATED ${revStr || "TOTAL"}`, color: "#e21022", width: Math.max(180, revStr.length * 8 + 120) };
+    case "SCOPE_REMOVED":
+      return { text: "OMITTED IN REVISION (SCOPE ANCHOR)", color: "#d97706", width: 250 };
+    case "SCOPE_ADDED":
+      return { text: "NEW DELIVERABLE ADDED", color: "#16a34a", width: 180 };
+    case "PRICE_CHANGE":
+      return { text: `REVISED: ${revStr} (${deltaStr || "PRICE"})`, color: "#16a34a", width: Math.max(170, (revStr.length + deltaStr.length) * 7.5 + 80) };
+    case "QTY_CHANGE":
+      return { text: `REVISED: ${revStr} UNITS (${deltaStr || "QTY"})`, color: "#16a34a", width: Math.max(180, (revStr.length + deltaStr.length) * 7.5 + 90) };
+    case "RENAMED_ITEM":
+      return { text: "RENAMED DELIVERABLE", color: "#16a34a", width: 170 };
+    case "DATE_CHANGE":
+      return { text: `NEW DATE: ${revStr}`, color: "#16a34a", width: Math.max(150, revStr.length * 7.5 + 80) };
+    default:
+      return { text: `REVISED • P.${page}`, color: "#86a357", width: 130 };
+  }
+}
 
   /**
    * Transform coordinates for SVG overlay based on viewport scale.
@@ -398,6 +479,26 @@ export function PdfDualCanvasViewer({
         </div>
       </div>
 
+      {/* Visual Spatial Legend Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl bg-gray-50/90 border border-gray-200/80 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <span className="font-bold text-gray-800 uppercase tracking-wider text-[11px]">Visual Legend:</span>
+          <div className="flex items-center gap-1.5 font-medium text-gray-700">
+            <span className="w-2.5 h-2.5 rounded-xs bg-[#e21022] inline-block shadow-2xs" />
+            <span>Doc A Baseline / Math Error</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-medium text-gray-700">
+            <span className="w-2.5 h-2.5 rounded-xs bg-[#16a34a] inline-block shadow-2xs" />
+            <span>Doc B Revised Value</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-medium text-gray-700">
+            <span className="w-3.5 h-2 rounded-xs border border-dashed border-gray-400 bg-gray-200/60 inline-block" />
+            <span>Passive Delta (Click to inspect)</span>
+          </div>
+        </div>
+        <span className="text-gray-400 font-mono text-[11px]">Unmarked rows = 100% Identical</span>
+      </div>
+
       {/* Split-Screen Canvas Panes */}
       <div className={`grid gap-4 ${viewMode === "split" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
         
@@ -494,43 +595,44 @@ export function PdfDualCanvasViewer({
                   })}
 
                   {/* Active Highlight Bounding Box */}
-                  {activeOrigBbox && (activeDiff?.originalLocation?.page ?? 1) === origPageNum && (
-                    <g>
-                      {/* Halo */}
-                      <rect
-                        x={activeOrigBbox.x - 3}
-                        y={activeOrigBbox.y - 3}
-                        width={activeOrigBbox.width + 6}
-                        height={activeOrigBbox.height + 6}
-                        fill="rgba(226, 16, 34, 0.18)"
-                        stroke="#e21022"
-                        strokeWidth="2"
-                        rx="6"
-                      />
-                      
-                      {/* Top Pin Tag */}
-                      <rect
-                        x={activeOrigBbox.x}
-                        y={activeOrigBbox.y - 22}
-                        width={activeDiff?.type === "SCOPE_ADDED" ? 210 : Math.min(190, activeOrigBbox.width + 20)}
-                        height="20"
-                        fill="#e21022"
-                        rx="5"
-                      />
-                      <text
-                        x={activeOrigBbox.x + 6}
-                        y={activeOrigBbox.y - 8}
-                        fill="#fff"
-                        fontSize="11"
-                        fontWeight="bold"
-                        fontFamily="monospace"
-                      >
-                        {activeDiff?.type === "SCOPE_ADDED"
-                          ? "DOC A HEADER ANCHOR"
-                          : `REF • PAGE ${origPageNum}`}
-                      </text>
-                    </g>
-                  )}
+                  {activeOrigBbox && (activeDiff?.originalLocation?.page ?? 1) === origPageNum && (() => {
+                    const tag = getOrigTagDetails(activeDiff, origPageNum);
+                    return (
+                      <g>
+                        {/* Halo */}
+                        <rect
+                          x={activeOrigBbox.x - 3}
+                          y={activeOrigBbox.y - 3}
+                          width={activeOrigBbox.width + 6}
+                          height={activeOrigBbox.height + 6}
+                          fill={tag.color === "#d97706" ? "rgba(217, 119, 6, 0.16)" : "rgba(226, 16, 34, 0.18)"}
+                          stroke={tag.color}
+                          strokeWidth="2"
+                          rx="6"
+                        />
+                        
+                        {/* Top Pin Tag */}
+                        <rect
+                          x={activeOrigBbox.x}
+                          y={activeOrigBbox.y - 22}
+                          width={tag.width}
+                          height="20"
+                          fill={tag.color}
+                          rx="5"
+                        />
+                        <text
+                          x={activeOrigBbox.x + 6}
+                          y={activeOrigBbox.y - 8}
+                          fill="#fff"
+                          fontSize="11"
+                          fontWeight="bold"
+                          fontFamily="monospace"
+                        >
+                          {tag.text}
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </svg>
               </div>
             </div>
@@ -630,49 +732,50 @@ export function PdfDualCanvasViewer({
                   })}
 
                   {/* Active Highlight Bounding Box */}
-                  {activeRevBbox && (activeDiff?.revisedLocation?.page ?? 1) === revPageNum && (
-                    <g>
-                      {/* Ambient Halo */}
-                      <rect
-                        x={activeRevBbox.x - 3}
-                        y={activeRevBbox.y - 3}
-                        width={activeRevBbox.width + 6}
-                        height={activeRevBbox.height + 6}
-                        fill={
-                          activeDiff?.type === "ARITHMETIC_ERROR"
-                            ? "rgba(226, 16, 34, 0.22)"
-                            : "rgba(134, 163, 87, 0.22)"
-                        }
-                        stroke={activeDiff?.type === "ARITHMETIC_ERROR" ? "#e21022" : "#86a357"}
-                        strokeWidth="2"
-                        rx="6"
-                      />
-                      
-                      {/* Top Pin Tag */}
-                      <rect
-                        x={activeRevBbox.x}
-                        y={activeRevBbox.y - 22}
-                        width={activeDiff?.type === "SCOPE_REMOVED" ? 250 : Math.min(220, activeRevBbox.width + 20)}
-                        height="20"
-                        fill={activeDiff?.type === "ARITHMETIC_ERROR" ? "#e21022" : "#86a357"}
-                        rx="5"
-                      />
-                      <text
-                        x={activeRevBbox.x + 6}
-                        y={activeRevBbox.y - 8}
-                        fill="#fff"
-                        fontSize="11"
-                        fontWeight="bold"
-                        fontFamily="monospace"
-                      >
-                        {activeDiff?.type === "ARITHMETIC_ERROR"
-                          ? `MATH ERROR • P.${revPageNum}`
-                          : activeDiff?.type === "SCOPE_REMOVED"
-                          ? `DOC B HEADER ANCHOR (OMITTED)`
-                          : `REVISED • P.${revPageNum}`}
-                      </text>
-                    </g>
-                  )}
+                  {activeRevBbox && (activeDiff?.revisedLocation?.page ?? 1) === revPageNum && (() => {
+                    const tag = getRevTagDetails(activeDiff, revPageNum);
+                    return (
+                      <g>
+                        {/* Ambient Halo */}
+                        <rect
+                          x={activeRevBbox.x - 3}
+                          y={activeRevBbox.y - 3}
+                          width={activeRevBbox.width + 6}
+                          height={activeRevBbox.height + 6}
+                          fill={
+                            tag.color === "#e21022"
+                              ? "rgba(226, 16, 34, 0.22)"
+                              : tag.color === "#d97706"
+                              ? "rgba(217, 119, 6, 0.18)"
+                              : "rgba(22, 163, 74, 0.20)"
+                          }
+                          stroke={tag.color}
+                          strokeWidth="2"
+                          rx="6"
+                        />
+                        
+                        {/* Top Pin Tag */}
+                        <rect
+                          x={activeRevBbox.x}
+                          y={activeRevBbox.y - 22}
+                          width={tag.width}
+                          height="20"
+                          fill={tag.color}
+                          rx="5"
+                        />
+                        <text
+                          x={activeRevBbox.x + 6}
+                          y={activeRevBbox.y - 8}
+                          fill="#fff"
+                          fontSize="11"
+                          fontWeight="bold"
+                          fontFamily="monospace"
+                        >
+                          {tag.text}
+                        </text>
+                      </g>
+                    );
+                  })()}
                 </svg>
               </div>
             </div>

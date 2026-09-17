@@ -57,8 +57,15 @@ export default function Home() {
 
     if (clientCacheRef.current.has(preset)) {
       const cachedReport = clientCacheRef.current.get(preset)!;
+      const primaryDiff =
+        cachedReport.diffs.find((d: any) => d.type === "ARITHMETIC_ERROR") ||
+        cachedReport.diffs.find((d: any) => d.type === "PRICE_CHANGE") ||
+        cachedReport.diffs.find((d: any) => d.type === "QTY_CHANGE") ||
+        cachedReport.diffs.find((d: any) => d.type === "RENAMED_ITEM") ||
+        cachedReport.diffs[0] ||
+        null;
       setReport(cachedReport);
-      setActiveDiff(cachedReport.diffs.length > 0 ? cachedReport.diffs[0] : null);
+      setActiveDiff(primaryDiff);
       if (preset === "ambiguous" || cachedReport.verdict === "NEEDS_CLARIFICATION") {
         setShowClarification(true);
       }
@@ -88,7 +95,13 @@ export default function Home() {
       clientCacheRef.current.set(preset, data.report);
       setReport(data.report);
       if (data.report.diffs && data.report.diffs.length > 0) {
-        setActiveDiff(data.report.diffs[0]);
+        const primaryDiff =
+          data.report.diffs.find((d: any) => d.type === "ARITHMETIC_ERROR") ||
+          data.report.diffs.find((d: any) => d.type === "PRICE_CHANGE") ||
+          data.report.diffs.find((d: any) => d.type === "QTY_CHANGE") ||
+          data.report.diffs.find((d: any) => d.type === "RENAMED_ITEM") ||
+          data.report.diffs[0];
+        setActiveDiff(primaryDiff);
       }
       if (preset === "ambiguous" || data.report.verdict === "NEEDS_CLARIFICATION") {
         setShowClarification(true);
@@ -117,10 +130,10 @@ export default function Home() {
       setOriginalPdfUrl(url1);
       setRevisedPdfUrl(url2);
 
-      const storedApiKey = typeof window !== "undefined" ? localStorage.getItem("revisecheck_together_key") || undefined : undefined;
       const formData = new FormData();
-      formData.append("fileOriginal", file1);
-      formData.append("fileRevised", file2);
+      formData.append("original", file1);
+      formData.append("revised", file2);
+      const storedApiKey = typeof window !== "undefined" ? localStorage.getItem("revisecheck_together_key") || undefined : undefined;
       if (storedApiKey) {
         formData.append("togetherApiKey", storedApiKey);
       }
@@ -144,7 +157,13 @@ export default function Home() {
       const data = await res.json();
       setReport(data.report);
       if (data.report.diffs && data.report.diffs.length > 0) {
-        setActiveDiff(data.report.diffs[0]);
+        const primaryDiff =
+          data.report.diffs.find((d: any) => d.type === "ARITHMETIC_ERROR") ||
+          data.report.diffs.find((d: any) => d.type === "PRICE_CHANGE") ||
+          data.report.diffs.find((d: any) => d.type === "QTY_CHANGE") ||
+          data.report.diffs.find((d: any) => d.type === "RENAMED_ITEM") ||
+          data.report.diffs[0];
+        setActiveDiff(primaryDiff);
       }
       if (data.report.verdict === "NEEDS_CLARIFICATION" && data.report.clarificationQuestions?.length > 0) {
         setShowClarification(true);
@@ -159,7 +178,15 @@ export default function Home() {
   useEffect(() => {
     loadPreset("standard");
     const prefetchPresets = async () => {
-      const presetsToPrefetch: PresetType[] = ["hyperscale_3page", "cloud_migration", "arithmetic_inflation", "milestone_schedule"];
+      const presetsToPrefetch: PresetType[] = [
+        "formatting",
+        "clean_approval",
+        "ambiguous",
+        "hyperscale_3page",
+        "cloud_migration",
+        "arithmetic_inflation",
+        "milestone_schedule",
+      ];
       for (const p of presetsToPrefetch) {
         try {
           const res = await fetch("/api/compare", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preset: p }) });

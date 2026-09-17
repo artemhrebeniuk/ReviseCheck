@@ -45,9 +45,12 @@ function buildReportFromMatching(
   // By pointing to a dedicated Scope Anchor on the proposal title/header, we maintain 100% valid
   // dual-source coordinates while visually signaling that the omission applies to the proposal scope as a whole.
   const findHeaderLine = (doc: ExtractedDocument): SourceLocation => {
-    const titleLine = doc.rawLines?.find(
-      (l) => /PROPOSAL|OFFER|COMMERCIAL/i.test(l.text) || l.lineNumber === 1
-    ) ?? doc.rawLines?.[0];
+    const titleLine =
+      doc.rawLines?.find((l) =>
+        /COMMERCIAL\s+PROPOSAL|OFFICIAL\s+PROPOSAL|REVISED\s+PROPOSAL|PROPOSAL\s+#/i.test(l.text)
+      ) ??
+      doc.rawLines?.find((l) => /PROPOSAL|OFFER/i.test(l.text)) ??
+      doc.rawLines?.[0];
 
     if (titleLine) {
       return {
@@ -70,6 +73,46 @@ function buildReportFromMatching(
     };
   };
 
+  const findDeliveryDateLine = (doc: ExtractedDocument): SourceLocation => {
+    const deliveryLine = doc.rawLines?.find((l) =>
+      /Delivery\s*(?:Date|Timeline|Schedule)?\s*:/i.test(l.text)
+    );
+    if (deliveryLine) {
+      return {
+        page: deliveryLine.page,
+        lineNumber: deliveryLine.lineNumber,
+        textSnippet: deliveryLine.text,
+        bbox: {
+          x: Math.max(30, deliveryLine.bbox.x),
+          y: deliveryLine.bbox.y,
+          width: Math.min(540, Math.max(220, deliveryLine.bbox.width)),
+          height: Math.max(16, deliveryLine.bbox.height),
+        },
+      };
+    }
+    return findHeaderLine(doc);
+  };
+
+  const findCurrencyLine = (doc: ExtractedDocument): SourceLocation => {
+    const currLine = doc.rawLines?.find((l) =>
+      /Currency\s*:/i.test(l.text)
+    );
+    if (currLine) {
+      return {
+        page: currLine.page,
+        lineNumber: currLine.lineNumber,
+        textSnippet: currLine.text,
+        bbox: {
+          x: Math.max(30, currLine.bbox.x),
+          y: currLine.bbox.y,
+          width: Math.min(540, Math.max(200, currLine.bbox.width)),
+          height: Math.max(16, currLine.bbox.height),
+        },
+      };
+    }
+    return findHeaderLine(doc);
+  };
+
   const doc1HeaderLoc: SourceLocation = findHeaderLine(doc1);
   const doc2HeaderLoc: SourceLocation = findHeaderLine(doc2);
 
@@ -87,8 +130,8 @@ function buildReportFromMatching(
       confidence: 1.0,
       isConfirmed: true,
       isSubstantive: true,
-      originalLocation: doc1HeaderLoc,
-      revisedLocation: doc2HeaderLoc,
+      originalLocation: findCurrencyLine(doc1),
+      revisedLocation: findCurrencyLine(doc2),
     });
     keyRisks.push(`Currency changed from ${doc1.currency} to ${doc2.currency}`);
     clarificationQuestions.push(
@@ -116,8 +159,8 @@ function buildReportFromMatching(
         confidence: 1.0,
         isConfirmed: true,
         isSubstantive: true,
-        originalLocation: doc1HeaderLoc,
-        revisedLocation: doc2HeaderLoc,
+        originalLocation: findDeliveryDateLine(doc1),
+        revisedLocation: findDeliveryDateLine(doc2),
       });
 
       if (isVague) {
