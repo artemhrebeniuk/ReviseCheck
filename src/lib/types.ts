@@ -80,6 +80,13 @@ export type ExtractedDocument = {
   grandTotalDiscrepancy?: number;
   rawLines: Array<{ page: number; lineNumber: number; text: string; bbox: BoundingBox }>;
   totalPages: number;
+  subtotal?: number;
+  discountAmount?: number;
+  taxAmount?: number;
+  taxInclusive?: boolean;
+  shippingAmount?: number;
+  deliveryTerms?: string;
+  validityDays?: number;
 };
 
 export type TelemetryData = {

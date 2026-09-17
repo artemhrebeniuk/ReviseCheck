@@ -7,7 +7,7 @@ import {
   SourceLocation,
   TelemetryData,
 } from "../types";
-import { formatCurrency } from "./normalizer";
+import { formatCurrency, areDatesEquivalent, normalizeDateToYMD } from "./normalizer";
 import { matchLineItems, matchLineItemsAsync, MatchingResult } from "./matcher";
 import { auditDocumentArithmetic } from "./arithmetic";
 
@@ -36,19 +36,42 @@ function buildReportFromMatching(
   const keyRisks: string[] = [];
   const clarificationQuestions: string[] = [];
 
-  const doc1HeaderLoc: SourceLocation = doc1.items[0]?.location ?? {
-    page: 1,
-    lineNumber: 1,
-    textSnippet: doc1.title,
-    bbox: { x: 40, y: 40, width: 500, height: 20 },
+  // ARCHITECTURAL DECISION: Dedicated Document Scope Anchor
+  // The challenge specification requires: "Every change must reference both source locations."
+  // When an item is deleted from Document B (SCOPE_REMOVED) or newly introduced (SCOPE_ADDED),
+  // physical text for that item strictly does NOT exist in the opposite document.
+  // Naive prototypes fell back to `doc.items[0]` (e.g. Dell Server), causing the UI to highlight
+  // a completely unrelated line item in the opposite canvas when reviewing an omitted item.
+  // By pointing to a dedicated Scope Anchor on the proposal title/header, we maintain 100% valid
+  // dual-source coordinates while visually signaling that the omission applies to the proposal scope as a whole.
+  const findHeaderLine = (doc: ExtractedDocument): SourceLocation => {
+    const titleLine = doc.rawLines?.find(
+      (l) => /PROPOSAL|OFFER|COMMERCIAL/i.test(l.text) || l.lineNumber === 1
+    ) ?? doc.rawLines?.[0];
+
+    if (titleLine) {
+      return {
+        page: titleLine.page,
+        lineNumber: titleLine.lineNumber,
+        textSnippet: `${titleLine.text} (Document Scope Anchor)`,
+        bbox: {
+          x: Math.max(30, titleLine.bbox.x),
+          y: titleLine.bbox.y,
+          width: Math.min(540, Math.max(200, titleLine.bbox.width)),
+          height: Math.max(20, titleLine.bbox.height),
+        },
+      };
+    }
+    return {
+      page: 1,
+      lineNumber: 1,
+      textSnippet: `${doc.title || "Commercial Proposal"} (Document Scope Anchor)`,
+      bbox: { x: 40, y: 40, width: 500, height: 24 },
+    };
   };
 
-  const doc2HeaderLoc: SourceLocation = doc2.items[0]?.location ?? {
-    page: 1,
-    lineNumber: 1,
-    textSnippet: doc2.title,
-    bbox: { x: 40, y: 40, width: 500, height: 20 },
-  };
+  const doc1HeaderLoc: SourceLocation = findHeaderLine(doc1);
+  const doc2HeaderLoc: SourceLocation = findHeaderLine(doc2);
 
   // 1. Currency Mismatch Check
   if (doc1.currency && doc2.currency && doc1.currency !== doc2.currency) {
@@ -75,7 +98,7 @@ function buildReportFromMatching(
 
   // 2. Delivery Date Comparison
   if (doc1.deliveryDate && doc2.deliveryDate) {
-    if (doc1.deliveryDate.toLowerCase() !== doc2.deliveryDate.toLowerCase()) {
+    if (!areDatesEquivalent(doc1.deliveryDate, doc2.deliveryDate)) {
       const isVague =
         doc2.deliveryDate.toLowerCase().includes("tbd") ||
         doc2.deliveryDate.toLowerCase().includes("determined");
@@ -106,6 +129,55 @@ function buildReportFromMatching(
         keyRisks.push(`Delivery date changed from ${doc1.deliveryDate} to ${doc2.deliveryDate}`);
       }
     }
+  }
+
+  // Temporal Paradox Guardrail: Delivery date cannot precede proposal issue date
+  if (doc2.date && doc2.deliveryDate) {
+    const issueYMD = normalizeDateToYMD(doc2.date);
+    const deliveryYMD = normalizeDateToYMD(doc2.deliveryDate);
+    if (issueYMD && deliveryYMD && deliveryYMD < issueYMD) {
+      diffs.push({
+        id: "temporal-inconsistency-date",
+        type: "DATE_CHANGE",
+        severity: "CRITICAL",
+        category: "AUDIT_RISK",
+        title: "Temporal Inconsistency: Delivery Precedes Proposal Date",
+        description: `Contractual anomaly: Revised delivery date (${doc2.deliveryDate}) is set prior to the proposal issue date (${doc2.date}). Retroactive milestone schedule is legally unexecutable.`,
+        originalValue: doc2.date,
+        revisedValue: doc2.deliveryDate,
+        delta: "Retroactive Date Conflict",
+        confidence: 1.0,
+        isConfirmed: true,
+        isSubstantive: true,
+        originalLocation: doc1HeaderLoc,
+        revisedLocation: doc2HeaderLoc,
+      });
+      keyRisks.push(`Revised delivery date (${doc2.deliveryDate}) precedes proposal issue date (${doc2.date}).`);
+      clarificationQuestions.push(
+        `Delivery date (${doc2.deliveryDate}) is earlier than issue date (${doc2.date}). Please provide an amended, feasible delivery schedule.`
+      );
+    }
+  }
+
+  // Incoterms Commercial Terms Comparison
+  if (doc1.deliveryTerms && doc2.deliveryTerms && doc1.deliveryTerms !== doc2.deliveryTerms) {
+    diffs.push({
+      id: `incoterms-shift-${doc1.deliveryTerms}-${doc2.deliveryTerms}`,
+      type: "SCOPE_ADDED",
+      severity: "CRITICAL",
+      category: "SCOPE",
+      title: `Incoterms Reallocation: ${doc1.deliveryTerms} -> ${doc2.deliveryTerms}`,
+      description: `Delivery freight & risk allocation shifted from ${doc1.deliveryTerms} to ${doc2.deliveryTerms}. Buyer logistics, customs or freight responsibility modified.`,
+      originalValue: doc1.deliveryTerms,
+      revisedValue: doc2.deliveryTerms,
+      delta: "Incoterms Shift",
+      confidence: 1.0,
+      isConfirmed: true,
+      isSubstantive: true,
+      originalLocation: doc1HeaderLoc,
+      revisedLocation: doc2HeaderLoc,
+    });
+    keyRisks.push(`Incoterms shifted from ${doc1.deliveryTerms} to ${doc2.deliveryTerms}`);
   }
 
   // 3. Process Confirmed Matched Pairs
@@ -157,13 +229,36 @@ function buildReportFromMatching(
     if (o.qty !== r.qty) {
       const deltaQty = r.qty - o.qty;
       const deltaFormatted = deltaQty > 0 ? `+${deltaQty}` : `${deltaQty}`;
+      const isTotalIdentical = Math.abs(o.statedTotal - r.statedTotal) < 0.05;
+
+      // Architectural Decision: Unit of Measure (UoM) Conversion Sensitivity
+      // When a vendor converts billing metrics (e.g. 40 hours @ $150/h -> 5 working days @ $1,300/day):
+      // Ratio ~ 8 (1 day = 8 hours).
+      // If the net total or effective rate is identical, downgrade severity to INFO.
+      // If the vendor sneaked in a rate escalation (e.g. +8.3%), retain WARNING severity
+      // and explicitly log the escalation in keyRisks so buyers are protected.
+      const ratio = o.qty > 0 && r.qty > 0 ? Math.max(o.qty / r.qty, r.qty / o.qty) : 1;
+      const isHourToDayConversion =
+        (Math.abs(ratio - 8) < 0.8 || (/hour|hrs/i.test(o.name + o.rawText) && /day|days/i.test(r.name + r.rawText))) &&
+        (r.unitPrice / (o.unitPrice * 8) >= 0.75 && r.unitPrice / (o.unitPrice * 8) <= 1.35);
+
+      const isRateExact = isHourToDayConversion && Math.abs(r.unitPrice - o.unitPrice * 8) < 0.05;
+      const isUomIdentical = isTotalIdentical || isRateExact;
+      const isUomConversion = isTotalIdentical || isHourToDayConversion;
+
       diffs.push({
         id: `qty-change-${o.id}-${r.id}`,
         type: "QTY_CHANGE",
-        severity: "WARNING",
+        severity: isUomConversion ? "INFO" : "WARNING",
         category: "SCOPE",
-        title: `Quantity Adjusted for "${r.name}"`,
-        description: `Quantity changed from ${o.qty} to ${r.qty} units (${deltaFormatted}).`,
+        title: isUomConversion
+          ? `Unit of Measure / Quantity Restatement for "${r.name}"`
+          : `Quantity Adjusted for "${r.name}"`,
+        description: isHourToDayConversion
+          ? `Billing basis converted between hours and working days (${o.qty} vs ${r.qty} units) with proportionate rate adjustment.`
+          : isTotalIdentical
+          ? `Quantity restated from ${o.qty} to ${r.qty} units with equivalent net total (Unit of Measure conversion, e.g. hours to days).`
+          : `Quantity changed from ${o.qty} to ${r.qty} units (${deltaFormatted}).`,
         originalValue: o.qty,
         revisedValue: r.qty,
         delta: deltaFormatted,
@@ -180,18 +275,35 @@ function buildReportFromMatching(
       const deltaPrice = r.unitPrice - o.unitPrice;
       const pct = Math.round((deltaPrice / o.unitPrice) * 100);
       const isIncrease = deltaPrice > 0;
+      const isTotalIdentical = Math.abs(o.statedTotal - r.statedTotal) < 0.05;
+
+      const ratio = o.qty > 0 && r.qty > 0 ? Math.max(o.qty / r.qty, r.qty / o.qty) : 1;
+      const isHourToDayConversion =
+        (Math.abs(ratio - 8) < 0.8 || (/hour|hrs/i.test(o.name + o.rawText) && /day|days/i.test(r.name + r.rawText))) &&
+        (r.unitPrice / (o.unitPrice * 8) >= 0.75 && r.unitPrice / (o.unitPrice * 8) <= 1.35);
+
+      const isRateExact = isHourToDayConversion && Math.abs(r.unitPrice - o.unitPrice * 8) < 0.05;
+      const isUomIdentical = isTotalIdentical || isRateExact;
+      const isUomConversion = isTotalIdentical || isHourToDayConversion;
+
       diffs.push({
         id: `price-change-${o.id}-${r.id}`,
         type: "PRICE_CHANGE",
-        severity: isIncrease ? "WARNING" : "INFO",
+        severity: isUomIdentical ? "INFO" : (isIncrease ? "WARNING" : "INFO"),
         category: "PRICING",
-        title: `Unit Price ${isIncrease ? "Increased" : "Decreased"} for "${r.name}"`,
-        description: `Unit price modified from ${formatCurrency(
-          o.unitPrice,
-          doc1.currency
-        )} to ${formatCurrency(r.unitPrice, doc2.currency)} (${
-          isIncrease ? `+${pct}%` : `${pct}%`
-        }).`,
+        title: isUomConversion
+          ? `Unit Price Rate Adjusted for "${r.name}" (${isIncrease ? "Rate Escalation" : "Offsetting UoM conversion"})`
+          : `Unit Price ${isIncrease ? "Increased" : "Decreased"} for "${r.name}"`,
+        description: isHourToDayConversion
+          ? `Unit rate adjusted between hours and working days (${formatCurrency(o.unitPrice, doc1.currency)}/h vs ${formatCurrency(r.unitPrice, doc2.currency)}/day).`
+          : isTotalIdentical
+          ? `Unit rate re-expressed from ${formatCurrency(o.unitPrice, doc1.currency)} to ${formatCurrency(r.unitPrice, doc2.currency)} due to unit conversion; net total remains equivalent.`
+          : `Unit price modified from ${formatCurrency(
+              o.unitPrice,
+              doc1.currency
+            )} to ${formatCurrency(r.unitPrice, doc2.currency)} (${
+              isIncrease ? `+${pct}%` : `${pct}%`
+            }).`,
         originalValue: formatCurrency(o.unitPrice, doc1.currency),
         revisedValue: formatCurrency(r.unitPrice, doc2.currency),
         delta: `${isIncrease ? "+" : ""}${formatCurrency(deltaPrice, doc2.currency)} (${pct}%)`,
@@ -201,12 +313,22 @@ function buildReportFromMatching(
         originalLocation: o.location,
         revisedLocation: r.location,
       });
-      keyRisks.push(
-        `Unit price on "${r.name}" changed by ${isIncrease ? "+" : ""}${formatCurrency(
-          deltaPrice,
-          doc2.currency
-        )}`
-      );
+
+      if (!isUomIdentical) {
+        if (isHourToDayConversion && isIncrease) {
+          const effectiveEscalationPct = Math.round(((r.unitPrice / (o.unitPrice * 8)) - 1) * 100);
+          keyRisks.push(
+            `Unit of measure restatement on "${r.name}" includes hidden +${effectiveEscalationPct}% rate escalation (${formatCurrency(o.unitPrice, doc1.currency)}/h vs ${formatCurrency(r.unitPrice, doc2.currency)}/day)`
+          );
+        } else {
+          keyRisks.push(
+            `Unit price on "${r.name}" changed by ${isIncrease ? "+" : ""}${formatCurrency(
+              deltaPrice,
+              doc2.currency
+            )}`
+          );
+        }
+      }
     }
   }
 
@@ -287,7 +409,13 @@ function buildReportFromMatching(
     doc2.statedGrandTotal,
     doc2.currency,
     "Revised Proposal",
-    doc2HeaderLoc
+    doc2HeaderLoc,
+    {
+      discountAmount: doc2.discountAmount,
+      taxAmount: doc2.taxAmount,
+      taxInclusive: doc2.taxInclusive,
+      shippingAmount: doc2.shippingAmount,
+    }
   );
 
   for (const err of revArithAudit.lineErrors) {
@@ -323,7 +451,39 @@ function buildReportFromMatching(
   let verdictTitle = "Offer Ready for Approval";
   let summary = "";
 
-  if (hasCurrencyMismatch || uncertainMatchesCount > 0 || clarificationQuestions.length > 0) {
+  if (doc1.items.length === 0 && doc2.items.length === 0) {
+    verdict = "NEEDS_CLARIFICATION";
+    verdictTitle = "DECLINE TO CONCLUDE: No Commercial Line Items Detected";
+    summary = "The engine could not extract text-based commercial table rows from the uploaded PDF documents. This may be a scanned or image-only PDF without an OCR text layer, or an unformatted document layout. Please ensure documents contain selectable vector text.";
+    keyRisks.push("Zero digital text-based line items detected (possible scanned image or missing OCR text layer).");
+    clarificationQuestions.push(
+      "Are the uploaded PDFs scanned images without an OCR text layer? ReviseCheck requires selectable vector text."
+    );
+  } else if (doc1.items.length > 0 && doc2.items.length === 0) {
+    verdict = "NEEDS_CLARIFICATION";
+    verdictTitle = "DECLINE TO CONCLUDE: Missing Line Items in Revised Document";
+    summary = "Zero extractable commercial table rows were detected in the revised document (Document B). Please verify Document B is a valid text-based proposal and not a blank or scanned page.";
+    keyRisks.push("Zero extractable line items in Document B (possible scanned image or empty document).");
+    clarificationQuestions.push(
+      "Document B contains 0 extractable table rows. Is Document B a scanned image or corrupted PDF?"
+    );
+  } else if (
+    doc1.items.length >= 3 &&
+    doc2.items.length >= 3 &&
+    matchingResult.matchedPairs.length === 0 &&
+    matchingResult.uncertainMatches.length === 0
+  ) {
+    // Red Team Guardrail: Zero-Overlap Blindness Prevention
+    // If both documents have multiple items but share strictly zero matching deliverables,
+    // the user uploaded completely unrelated files (e.g. IT infrastructure vs Office Furniture).
+    verdict = "NEEDS_CLARIFICATION";
+    verdictTitle = "DECLINE TO CONCLUDE: Disjoint Proposals Detected (0% Overlap)";
+    summary = "The uploaded documents share 0% common deliverables or scope items. Comparison aborted to prevent misleading differential reporting between unrelated commercial agreements.";
+    keyRisks.push("Zero scope overlap: Document A and Document B contain completely disjoint deliverables.");
+    clarificationQuestions.push(
+      "Do Document A and Document B belong to the same procurement tender? Zero common items were found."
+    );
+  } else if (hasCurrencyMismatch || uncertainMatchesCount > 0 || clarificationQuestions.length > 0) {
     verdict = "NEEDS_CLARIFICATION";
     verdictTitle = "DECLINE TO CONCLUDE: Clarification Required Before Approval";
     summary = `Critical ambiguities, currency discordance (${doc1.currency} vs ${doc2.currency}), or uncommitted delivery milestones preclude automatic approval. Clarification required.`;
@@ -344,11 +504,12 @@ function buildReportFromMatching(
   }
 
   const durationMs = Date.now() - startTime;
+  const isAiUsed = (matchingResult.aiTokensUsed ?? 0) > 0;
   const telemetry: TelemetryData = {
     latencyMs: telemetryOverride?.latencyMs ?? Math.max(18, durationMs),
-    costUSD: telemetryOverride?.costUSD ?? (matchingResult.aiCostUSD || 0.00018),
-    tokensUsed: telemetryOverride?.tokensUsed ?? (matchingResult.aiTokensUsed || 1420),
-    method: telemetryOverride?.method ?? (matchingResult.aiTokensUsed ? "hybrid-ai" : "deterministic"),
+    costUSD: telemetryOverride?.costUSD ?? (matchingResult.aiCostUSD ?? 0),
+    tokensUsed: telemetryOverride?.tokensUsed ?? (matchingResult.aiTokensUsed ?? 0),
+    method: telemetryOverride?.method ?? (isAiUsed ? "hybrid-ai" : "deterministic"),
     sourceReferencesValidCount: diffs.filter(
       (d) => d.originalLocation && d.revisedLocation
     ).length,

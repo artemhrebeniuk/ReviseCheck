@@ -224,20 +224,10 @@ export default function Home() {
             >
               {/* Proposal Audit Header */}
               <div className="border-b border-gray-100 pb-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] font-bold tracking-wider uppercase text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                    Control Rail
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-full">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Engine Ready</span>
-                  </span>
-                </div>
-
                 <h1 className="text-2xl font-bold tracking-tight text-gray-900 font-display">
                   Proposal Audit
                 </h1>
-                <p className="text-xs text-gray-500 leading-relaxed font-normal">
+                <p className="text-sm text-gray-500 leading-relaxed font-normal">
                   Automated differential auditor. Upload original &amp; revised commercial offers to instantly reveal substantive scope, pricing, and schedules.
                 </p>
               </div>

@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { extractPdfDocument } from "@/lib/pdf/extractor";
 import { compareCommercialOffersAsync } from "@/lib/engine/diff";
 
-// High-performance server-side in-memory cache for benchmark suites
-const presetCache = new Map<string, any>();
+// High-performance server-side in-memory cache keyed by MD5 content hash
+const contentCache = new Map<string, any>();
+
+function computeContentHash(orig: Buffer | Uint8Array, rev: Buffer | Uint8Array, apiKey?: string): string {
+  return crypto
+    .createHash("md5")
+    .update(Buffer.concat([Buffer.from(orig), Buffer.from(rev), Buffer.from(apiKey || "")]))
+    .digest("hex");
+}
 
 function loadPresetBuffers(preset: string, samplesDir: string): { orig: Buffer; rev: Buffer } {
   switch (preset) {
@@ -67,14 +75,15 @@ async function warmPresetCache() {
       "milestone_schedule",
     ];
     for (const p of presets) {
-      if (presetCache.has(p)) continue;
       const buffers = loadPresetBuffers(p, samplesDir);
+      const hash = computeContentHash(buffers.orig, buffers.rev);
+      if (contentCache.has(hash)) continue;
       const [docOriginal, docRevised] = await Promise.all([
         extractPdfDocument(buffers.orig),
         extractPdfDocument(buffers.rev),
       ]);
       const report = await compareCommercialOffersAsync(docOriginal, docRevised);
-      presetCache.set(p, {
+      contentCache.set(hash, {
         success: true,
         report,
         docOriginal: {
@@ -127,21 +136,6 @@ export async function POST(req: NextRequest) {
 
       if (preset) {
         requestedPreset = preset;
-        // Instant response from memory cache for known benchmark suites
-        if (presetCache.has(preset)) {
-          const cached = presetCache.get(preset);
-          return NextResponse.json({
-            ...cached,
-            report: {
-              ...cached.report,
-              telemetry: {
-                ...cached.report.telemetry,
-                latencyMs: Math.max(14, Date.now() - startTime),
-              },
-            },
-          });
-        }
-
         const samplesDir = path.join(process.cwd(), "public", "samples");
         const buffers = loadPresetBuffers(preset, samplesDir);
         originalBuffer = buffers.orig;
@@ -169,21 +163,6 @@ export async function POST(req: NextRequest) {
         hasCustomKey = true;
       }
 
-      // Instant response from memory cache for known benchmark suites
-      if (presetCache.has(preset)) {
-        const cached = presetCache.get(preset);
-        return NextResponse.json({
-          ...cached,
-          report: {
-            ...cached.report,
-            telemetry: {
-              ...cached.report.telemetry,
-              latencyMs: Math.max(14, Date.now() - startTime),
-            },
-          },
-        });
-      }
-
       const samplesDir = path.join(process.cwd(), "public", "samples");
       const buffers = loadPresetBuffers(preset, samplesDir);
       originalBuffer = buffers.orig;
@@ -192,6 +171,22 @@ export async function POST(req: NextRequest) {
 
     if (!originalBuffer || !revisedBuffer) {
       return NextResponse.json({ error: "Could not load document buffers." }, { status: 400 });
+    }
+
+    // Content-based caching: if exact document buffers were evaluated previously, return cached report
+    const cacheKey = computeContentHash(originalBuffer, revisedBuffer, clientApiKey);
+    if (contentCache.has(cacheKey)) {
+      const cached = contentCache.get(cacheKey);
+      return NextResponse.json({
+        ...cached,
+        report: {
+          ...cached.report,
+          telemetry: {
+            ...cached.report.telemetry,
+            latencyMs: Math.max(14, Date.now() - startTime),
+          },
+        },
+      });
     }
 
     // Extract both documents concurrently using Promise.all for 2x speedup
@@ -231,10 +226,8 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // Cache preset result in memory for instantaneous sub-5ms responses
-    if (requestedPreset) {
-      presetCache.set(requestedPreset, payload);
-    }
+    // Store in content-addressed cache
+    contentCache.set(cacheKey, payload);
 
     return NextResponse.json(payload);
   } catch (error: unknown) {

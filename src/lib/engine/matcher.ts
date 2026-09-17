@@ -89,22 +89,56 @@ export function calculateItemSimilarity(
     };
   }
 
-  const categories = ["server", "switch", "monitor", "ups", "cable", "workstation", "service"];
-  const n1 = item1.normalizedName;
-  const n2 = item2.normalizedName;
-  const sharedCategory = categories.find((c) => n1.includes(c) && n2.includes(c));
+  // Domain-agnostic semantic stem and token overlap (works across IT, industrial, medical, construction, consulting)
+  const tokens1 = item1.normalizedName.split(/\s+/).filter((t) => t.length >= 3);
+  const tokens2 = item2.normalizedName.split(/\s+/).filter((t) => t.length >= 3);
+  
+  const sharedStems = tokens1.filter((t1) =>
+    tokens2.some((t2) => {
+      if (t1 === t2) return true;
+      const minL = Math.min(t1.length, t2.length);
+      if (minL >= 4 && (t1.startsWith(t2.slice(0, 4)) || t2.startsWith(t1.slice(0, 4)))) {
+        return true;
+      }
+      return false;
+    })
+  );
 
-  if (sharedCategory) {
-    const score = 0.55 + tokenOverlap * 0.3;
-    return {
-      score: Math.round(score * 100) / 100,
-      reason: `Same product category (${sharedCategory}) with altered specifications`,
-    };
+  if (sharedStems.length > 0) {
+    const stemOverlap = sharedStems.length / Math.max(tokens1.length, tokens2.length, 1);
+    if (stemOverlap >= 0.33 || sharedStems.length >= 2) {
+      const score = Math.min(0.85, 0.55 + stemOverlap * 0.35);
+      return {
+        score: Math.round(score * 100) / 100,
+        reason: `Shared core semantic terminology (${sharedStems.slice(0, 3).join(", ")}) with altered specifications`,
+      };
+    }
   }
 
   return { score: Math.round(levRatio * 100) / 100, reason: "Low similarity" };
 }
 
+/**
+ * Multi-Tier Entity Matching Pipeline (Asynchronous with AI Arbiter)
+ *
+ * ARCHITECTURAL DESIGN:
+ * Matches line items between Document A and Document B through a progressive 3-tier pipeline:
+ * - Pass 1: O(N) Exact canonical string equality (100% confidence).
+ * - Pass 2: Deterministic heuristic matching pre-scoring candidate pairs using:
+ *           - Levenshtein normalized edit distance
+ *           - Hardware / product SKU token extraction (e.g. 'R750', 'C9200L', 'c7g.2xlarge')
+ *           - Shared domain semantic stems and token set intersection
+ *           Pairs with score >= 0.78 are confirmed instantly without external calls.
+ * - Pass 3: Together AI (Meta Llama-3.3-70B-Instruct-Turbo) arbiter in strict JSON mode
+ *           invoked for ambiguous pairs or total nomenclature rewrites.
+ * - Guardrail: Any candidate correlation with confidence < 0.80 is routed to `uncertainMatches`
+ *              to prevent unverified model hallucinations from auto-approving proposals.
+ *
+ * @param originalItems - Canonical line items from original proposal.
+ * @param revisedItems - Canonical line items from revised proposal.
+ * @param togetherApiKey - Optional API key for Llama-3.3-70B semantic fallback.
+ * @returns Fully reconciled MatchingResult with matched pairs, omissions, additions, and telemetry.
+ */
 export async function matchLineItemsAsync(
   originalItems: CanonicalLineItem[],
   revisedItems: CanonicalLineItem[],
@@ -185,6 +219,22 @@ export async function matchLineItemsAsync(
   const remainingAmbiguous = ambiguousCandidates.filter(
     (c) => !usedOriginalIds.has(c.orig.id) && !usedRevisedIds.has(c.rev.id)
   );
+
+  // Include any remaining unmatched items as AI candidate pairs (even if heuristic score < 0.45)
+  // to allow Llama 3.3 70B to resolve total nomenclature rewrites with zero lexical overlap
+  if (togetherApiKey) {
+    const unassignedOrig = originalItems.filter((i) => !usedOriginalIds.has(i.id));
+    const unassignedRev = revisedItems.filter((i) => !usedRevisedIds.has(i.id));
+
+    for (const orig of unassignedOrig) {
+      for (const rev of unassignedRev) {
+        if (!remainingAmbiguous.some((c) => c.orig.id === orig.id && c.rev.id === rev.id)) {
+          const { score, reason } = calculateItemSimilarity(orig, rev);
+          remainingAmbiguous.push({ orig, rev, score, reason });
+        }
+      }
+    }
+  }
 
   if (togetherApiKey && remainingAmbiguous.length > 0) {
     // Limit to top candidate pairs to prevent combinatorial explosion

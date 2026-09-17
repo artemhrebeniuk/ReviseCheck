@@ -123,7 +123,10 @@ async function createProposalPdf(
     }
 
     // Table Header
-    page.drawText("# Description Qty Unit Price ($) Total ($)", {
+    const headerText = fontStyle === "courier"
+      ? "ITEM DESCRIPTION QUANTITY UNIT RATE LINE TOTAL"
+      : "# Description Qty Unit Price ($) Total ($)";
+    page.drawText(headerText, {
       x: 50,
       y,
       size: 9,

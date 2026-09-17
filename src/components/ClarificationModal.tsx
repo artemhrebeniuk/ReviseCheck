@@ -50,7 +50,7 @@ export function ClarificationModal({
           </div>
           <button
             onClick={onClose}
-            className="tactile-btn p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+            className="tactile-btn active:scale-95 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
             aria-label="Close modal"
           >
             <X className="h-4 w-4" />
@@ -78,25 +78,25 @@ export function ClarificationModal({
               <div className="flex items-center gap-2 pt-1 pl-7">
                 <button
                   onClick={() => handleSelect(idx, "CONFIRMED")}
-                  className={`tactile-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+                  className={`tactile-btn active:scale-95 px-3.5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     resolved[idx] === "CONFIRMED"
                       ? "bg-emerald-600 text-white shadow-xs"
                       : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
                   }`}
                 >
-                  <Check className="h-3 w-3" />
+                  <Check className="h-4 w-4" />
                   <span>Confirm Scope</span>
                 </button>
 
                 <button
                   onClick={() => handleSelect(idx, "REJECTED")}
-                  className={`tactile-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+                  className={`tactile-btn active:scale-95 px-3.5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     resolved[idx] === "REJECTED"
                       ? "bg-rose-600 text-white shadow-xs"
                       : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
                   }`}
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-4 w-4" />
                   <span>Reject Discrepancy</span>
                 </button>
               </div>
@@ -106,7 +106,7 @@ export function ClarificationModal({
 
         {/* Footer */}
         <div className="pt-2 flex items-center justify-between border-t border-gray-100">
-          <span className="text-xs font-mono text-gray-500">
+          <span className="text-sm font-mono text-gray-500">
             {Object.keys(resolved).length} of {questions.length} inquiries resolved
           </span>
           <button
@@ -116,7 +116,7 @@ export function ClarificationModal({
               }
               onClose();
             }}
-            className="tactile-btn px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold text-xs cursor-pointer"
+            className="tactile-btn active:scale-95 px-4 py-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm cursor-pointer"
           >
             Apply Clarifications
           </button>

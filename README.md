@@ -101,6 +101,26 @@ npm run generate:samples
 * **Sub-Second Audits:** Complete differential synthesis executes in **280–500 ms** in deterministic local mode.
 * **Transparent Variable Economics:** Displays exact processing latency, token accounting, and variable cost (~$0.00018 USD per document pair with Llama-3.3-70B semantic fallback).
 
+### 7. Timezone-Drift Immunity & Calendar Normalization
+* **Zero Offset Discrepancy:** Native `Date` objects deserialize `"October 15, 2026"` according to the user's local timezone (e.g. UTC+3 converts midnight to 21:00 UTC on Oct 14th). ReviseCheck uses pure regex calendar normalization (`normalizeDateToYMD`), preventing false-positive date change alarms across global deployment environments.
+* **Semantic Equivalences:** Recognizes that `"October 15, 2026"`, `"2026-10-15"`, and `"15.10.2026"` represent the exact same contractual milestone.
+
+### 8. Adaptive Column Layout Auto-Detection
+* **Inverted Column Ingestion:** Automatically detects when accounting packages invert column sequences (e.g. `[Rate | Qty | Total]` vs `[Qty | Rate | Total]`).
+* **Currency Symbol Disambiguation:** Checks currency symbol signatures (`$`, `€`, `£`) against integer quantifiers, ensuring unit rates and item quantities are never transposed.
+
+### 9. Multiline Technical Note & Sub-Row Aggregation
+* **Sub-Row Poisoning Prevention:** In enterprise proposals, warranty terms, SLA specifications, or part numbers frequently sit directly below a row (e.g. *"Includes 3-year 24/7 mission-critical support"*).
+* **Context Preservation:** ReviseCheck attaches subline annotations as specification suffixes to the parent line item rather than creating phantom items or corrupting subsequent rows.
+
+### 10. Tax-Inclusive (Gross vs Net VAT) Mathematical Reconciliation
+* **Gross Invoicing Recognition:** Differentiates between net proposals (where VAT must be added to lines) and gross proposals (where lines already include VAT and the footer note is informational).
+* **Mathematical Proof:** If stated grand total equals the sum of line items, VAT is reconciled as tax-inclusive, avoiding false `ARITHMETIC_ERROR` flags on valid commercial invoices.
+
+### 11. Incoterms & Commercial Terms Allocation
+* **Logistics Risk Auditing:** Detects shifts in freight and commercial responsibility (e.g. silent renegotiation from `DDP` delivery-paid to `EXW` factory-gate pickup).
+* **Quotation Validity Tracking:** Extracts validity terms (e.g. *"Validity: 30 Days"*) to identify contracting risk windows.
+
 ---
 
 ## System Architecture & Dataflow Topology
@@ -269,8 +289,20 @@ During iterative engineering and testing, three critical edge case failure modes
    * *The Solution:* Isolated all numerical auditing into `src/lib/engine/arithmetic.ts` using `Decimal.js` with arbitrary decimal precision, guaranteeing exact cent-accurate arithmetic.
 
 3. **Failure Mode 3: Missing Physical Anchor for Omitted Items in Bidirectional Citations**
-   * *The Problem:* When a line item is removed in the revision (e.g. `APC Smart-UPS 1500VA`), there is no corresponding row or text in Document B to cite. Early prototypes risked dual citation failures or `null` coordinate crashes.
-   * *The Solution:* Established the *Document Anchor Fallback Pattern*: when an item is omitted in Document B, its `revisedLocation` references Document B's proposal declaration header with an explicit annotation: *"Omitted from revised proposal scope"*. Conversely, new items cite Document A's scope header. Every single diff is guaranteed to possess valid page numbers, line numbers, and bounding boxes.
+   * *The Problem:* When a line item is removed in the revision (e.g. `APC Smart-UPS 1500VA`), there is no corresponding row or text in Document B to cite. Early prototypes risked dual citation failures or `null` coordinate crashes. If falling back to `doc2.items[0]`, the UI highlighted an unrelated item (e.g. Dell Server) when clicking on the omitted UPS.
+   * *The Solution:* Established the *Document Scope Anchor Pattern*: when an item is omitted in Document B, its `revisedLocation` references Document B's proposal declaration header with an explicit annotation: *"Omitted from revised proposal scope"*. Conversely, new items cite Document A's scope header. Every single diff is guaranteed to possess valid page numbers, line numbers, and bounding boxes without misleading cross-highlights.
+
+4. **Failure Mode 4: Timezone Offset Desync in Date Normalization**
+   * *The Problem:* Parsing textual dates via `new Date("October 15, 2026")` in UTC+3 timezones yielded UTC `2026-10-14T21:00:00Z` (`getDate() === 14`), while ISO dates like `2026-10-15` parsed at UTC midnight (`getDate() === 15`), generating false-positive date alteration alerts.
+   * *The Solution:* Replaced JavaScript runtime date deserialization with deterministic regex calendar tokenization (`normalizeDateToYMD`), ensuring timezone-independent date comparisons worldwide.
+
+5. **Failure Mode 5: Multiline Subline Note Poisoning in Table Ingestion**
+   * *The Problem:* Sub-row technical descriptions (e.g. *"Includes 3-year 24/7 mission-critical warranty"*) under a hardware item lacked price tokens and broke standard row parsing, corrupting the subsequent line item.
+   * *The Solution:* Implemented parent-item context aggregation in `src/lib/pdf/extractor.ts`: text lines matching specification patterns (`warranty`, `support`, `includes`) automatically append to the preceding item's name rather than causing parsing aborts.
+
+6. **Failure Mode 6: Tax-Inclusive VAT Misreconciliation (Gross Invoicing)**
+   * *The Problem:* In proposals where prices already include VAT (Gross) with an informational note (`"Includes 20% VAT: $2,866.67"`), naive arithmetic engines added VAT to line items, calculating a false discrepancy against the stated grand total and triggering an unjustified `REJECT`.
+   * *The Solution:* Implemented mathematical tax reconciliation in `src/lib/pdf/extractor.ts` and `src/lib/engine/arithmetic.ts`: if `|statedGrandTotal - itemsSum| < 0.05`, the proposal is tagged `taxInclusive = true`, preventing double-tax addition while auditing mathematics.
 
 ### 3. Engineering Time Spent Breakdown (8-Hour Window)
 

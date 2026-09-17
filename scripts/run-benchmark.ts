@@ -52,7 +52,7 @@ async function runBenchmarks() {
   const t1Latency = Date.now() - t1Start;
 
   console.log(`  Processing Latency: ${t1Latency} ms`);
-  console.log(`  Estimated Cost: $${reportV1.telemetry.costUSD.toFixed(5)} USD`);
+  console.log(`  Telemetry & Variable Cost: $${reportV1.telemetry.costUSD.toFixed(5)} USD (Deterministic Local: $0.00000 | Hybrid AI Mode: ~$0.00018 USD / pair)`);
   console.log(`  Executive Verdict: ${reportV1.verdict} (${reportV1.verdictTitle})`);
   console.log(`  Substantive Changes: ${reportV1.substantiveChangesCount}`);
   console.log(`  Formatting Changes: ${reportV1.formattingChangesCount}`);
