@@ -103,7 +103,10 @@ export function DualDropzoneHero({
   };
 
   // Fast Swap: [Doc A ⇄ Doc B]
-  const handleSwap = () => {
+  const handleSwap = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (file1 && file2) {
       const next1 = file2;
       const next2 = file1;
@@ -301,7 +304,7 @@ export function DualDropzoneHero({
             {/* SLOT 1: Doc A (Baseline Reference - Neutral Slate #334155) */}
             <div
               onClick={() => fileInputDocARef.current?.click()}
-              className={`tactile-btn p-4 sm:p-5 rounded-xl border transition cursor-pointer text-left flex flex-col justify-between min-h-32 active:scale-[0.99] ${
+              className={`relative group tactile-btn p-4 sm:p-5 rounded-xl border transition cursor-pointer text-left flex flex-col justify-between min-h-32 active:scale-[0.99] ${
                 file1
                   ? "bg-slate-50/90 border-slate-300 ring-1 ring-slate-400/20 shadow-xs"
                   : "bg-gray-50/60 border-gray-200 hover:border-slate-400"
@@ -377,8 +380,8 @@ export function DualDropzoneHero({
                 title="Quick Swap: Switch Doc A and Doc B and re-run comparison"
                 aria-label="Swap Document A and Document B"
               >
-                <ArrowLeftRight className="h-5 w-5 group-hover:rotate-180 transition-transform duration-300 text-blue-600" />
-                <span className="font-sans text-sm font-bold text-gray-700 uppercase tracking-tight">
+                <ArrowLeftRight className="h-5 w-5 group-hover:rotate-180 transition-transform duration-300 text-blue-600 pointer-events-none" />
+                <span className="font-sans text-sm font-bold text-gray-700 uppercase tracking-tight pointer-events-none">
                   Swap A ⇄ B
                 </span>
               </button>
