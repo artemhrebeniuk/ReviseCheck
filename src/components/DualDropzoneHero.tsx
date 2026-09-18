@@ -45,10 +45,9 @@ export function DualDropzoneHero({
   // Modals
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-
-  // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
   const [speechTranscript, setSpeechTranscript] = useState("");
+  const [dictationLang, setDictationLang] = useState<"uk-UA" | "ru-RU" | "en-US">("uk-UA");
   const recognitionRef = useRef<any>(null);
 
   const fileInputDocARef = useRef<HTMLInputElement>(null);
@@ -128,7 +127,7 @@ export function DualDropzoneHero({
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
           recognition.interimResults = true;
-          recognition.lang = "en-US";
+          recognition.lang = dictationLang;
 
           recognition.onresult = (event: any) => {
             let current = "";
@@ -542,16 +541,30 @@ export function DualDropzoneHero({
                     <span className="text-base text-gray-500">
                       {isRecording
                         ? "Speak clearly into your microphone"
-                        : "Click mic to speak directives (English/Ukrainian)"}
+                        : "Select language and click mic to speak"}
                     </span>
                   </div>
                 </div>
-                {isRecording && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold bg-rose-100 text-rose-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-ping" />
-                    Recording
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={dictationLang}
+                    onChange={(e) => setDictationLang(e.target.value as any)}
+                    disabled={isRecording}
+                    className="bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block px-2 py-1.5 font-semibold cursor-pointer outline-none shadow-sm disabled:opacity-50"
+                    title="Select Dictation Language"
+                  >
+                    <option value="uk-UA">UK</option>
+                    <option value="ru-RU">RU</option>
+                    <option value="en-US">EN</option>
+                  </select>
+
+                  {isRecording && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-sm font-semibold bg-rose-100 text-rose-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-ping" />
+                      <span className="hidden sm:inline">Recording</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Directive Textarea */}
