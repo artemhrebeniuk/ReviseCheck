@@ -18,7 +18,6 @@ interface AnalysisStepperProps {
 interface StepInfo {
   id: number;
   title: string;
-  subtitle: string;
   detail: string;
   icon: React.ComponentType<{ className?: string }>;
 }
@@ -27,7 +26,6 @@ const STEPS: StepInfo[] = [
   {
     id: 1,
     title: "Parsing PDF & Spatial Mapping",
-    subtitle: "Парсинг PDF и привязка векторных координат",
     detail:
       "Extracting vector text streams, bounding boxes & tabular geometry across pages",
     icon: FileSearch,
@@ -35,7 +33,6 @@ const STEPS: StepInfo[] = [
   {
     id: 2,
     title: "Deterministic Math Audit (Decimal.js)",
-    subtitle: "Детерминированная проверка математики через Decimal.js",
     detail:
       "Auditing line item qty × price products and grand totals with zero floating-point drift",
     icon: Calculator,
@@ -43,7 +40,6 @@ const STEPS: StepInfo[] = [
   {
     id: 3,
     title: "Entity Matching & Layout Filtering",
-    subtitle: "Сопоставление строк и фильтрация форматирования",
     detail:
       "Reconciling line items across pages, catching reorders & filtering font/column transposition",
     icon: GitCompare,
@@ -51,7 +47,6 @@ const STEPS: StepInfo[] = [
   {
     id: 4,
     title: "Executive Synthesis & Decision Matrix",
-    subtitle: "Формирование сводки для ЛПР",
     detail:
       "Synthesizing APPROVE / REJECT verdict, financial delta, and actionable signing briefing",
     icon: ShieldCheck,
@@ -174,14 +169,7 @@ export function AnalysisStepper({ customMessage }: AnalysisStepperProps) {
                   </span>
                 </div>
 
-                <p
-                  className={`text-sm sm:text-base mt-1 leading-relaxed ${
-                    isActive ? "text-blue-900/80 font-medium" : "text-gray-500"
-                  }`}
-                >
-                  {step.subtitle}
-                </p>
-                <p className="text-sm font-mono text-gray-400 mt-1">
+                <p className="text-sm font-mono text-gray-500 mt-1.5 leading-relaxed">
                   {step.detail}
                 </p>
               </div>
