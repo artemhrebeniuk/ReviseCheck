@@ -202,14 +202,14 @@ export function PdfDualCanvasViewer({
       // Smooth scroll container to highlight coordinates
       const timer = setTimeout(() => {
         if (activeDiff.originalLocation?.bbox && containerOrigRef.current) {
-          const targetY = activeDiff.originalLocation.bbox.y * scale - 90;
+          const targetY = activeDiff.originalLocation.bbox.y * scale - 250;
           containerOrigRef.current.scrollTo({
             top: Math.max(0, targetY),
             behavior: "smooth",
           });
         }
         if (activeDiff.revisedLocation?.bbox && containerRevRef.current) {
-          const targetY = activeDiff.revisedLocation.bbox.y * scale - 90;
+          const targetY = activeDiff.revisedLocation.bbox.y * scale - 250;
           containerRevRef.current.scrollTo({
             top: Math.max(0, targetY),
             behavior: "smooth",
