@@ -115,6 +115,7 @@ export type AuditReport = {
   uncertainMatchesCount: number;
   diffs: CommercialDiff[];
   telemetry: TelemetryData;
+  executiveDirectiveResponse?: string;
   clarificationQuestions?: string[];
   doc1Currency?: string;
   doc2Currency?: string;

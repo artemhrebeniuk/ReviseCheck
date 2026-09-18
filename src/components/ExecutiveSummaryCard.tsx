@@ -24,11 +24,13 @@ import { formatCurrency } from "@/lib/engine/normalizer";
 
 interface ExecutiveSummaryCardProps {
   report: AuditReport;
+  directive?: string | null;
   onOpenClarification?: () => void;
 }
 
 export function ExecutiveSummaryCard({
   report,
+  directive,
   onOpenClarification,
 }: ExecutiveSummaryCardProps) {
   const [copied, setCopied] = useState(false);
@@ -144,13 +146,21 @@ export function ExecutiveSummaryCard({
           ? "HOLD SIGNATURE // Clarification required from procurement leadership on ambiguous terms."
           : "AUTHORIZED TO SIGN // All commercial terms verified with zero arithmetic discrepancies.";
 
+    const directiveBlock = directive
+      ? `\nAPPLIED EXECUTIVE DIRECTIVE:\n • "${directive}"\n • Status: Evaluated & Logged in Audit Trail\n${
+          report.executiveDirectiveResponse
+            ? ` • AI Response: ${report.executiveDirectiveResponse}\n`
+            : ""
+        }`
+      : "";
+
     const text = `===============================================================
 REVISECHECK COMMERCIAL AUDIT BRIEFING
 ===============================================================
 
 VERDICT: ${report.verdict} — ${report.verdictTitle}
 ACTION:  ${actionRecommendation}
-
+${directiveBlock}
 EXECUTIVE SUMMARY:
 ${report.summary}
 
@@ -267,6 +277,36 @@ Verified by ReviseCheck (https://github.com/artemhrebeniuk/ReviseCheck)
           {report.summary}
         </p>
       </div>
+
+      {/* Executive Directive Applied (if present) */}
+      {directive && (
+        <div className="flex flex-col gap-3 px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <Info className="hidden sm:block h-5 w-5 text-indigo-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-900/70 block mb-0.5">
+                Applied Leadership Directive
+              </span>
+              <span className="text-base text-indigo-900 font-sans font-semibold block">
+                &ldquo;{directive}&rdquo;
+              </span>
+            </div>
+            <div className="shrink-0 mt-2 sm:mt-0">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white border border-indigo-100 text-indigo-700 shadow-2xs whitespace-nowrap">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                Logged &amp; Evaluated
+              </span>
+            </div>
+          </div>
+          
+          {report.executiveDirectiveResponse && (
+            <div className="mt-2 p-3 rounded-lg bg-white/80 border border-indigo-100 shadow-sm text-sm font-medium text-indigo-950 font-sans leading-relaxed">
+              <span className="font-bold text-indigo-700 uppercase tracking-wide text-xs block mb-1">AI Analyst Response:</span>
+              {report.executiveDirectiveResponse}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Metrics Grid - Spacious 2-col layout on desktop, 4-col on ultra-wide */}
       <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4 pt-2">

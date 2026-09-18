@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import { extractPdfDocument } from "@/lib/pdf/extractor";
 import { compareCommercialOffersAsync } from "@/lib/engine/diff";
+import { evaluateExecutiveDirectiveWithTogetherAI } from "@/lib/engine/together";
 
 export const maxDuration = 60; // Allow 60s for Together AI processing on Vercel
 
@@ -107,11 +108,14 @@ export async function POST(req: NextRequest) {
     let clientApiKey: string | undefined = authHeader || undefined;
     let requestedPreset: string | null = null;
     let hasCustomKey = false;
+    let userDirective: string | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const preset = formData.get("preset") as string | null;
       const keyFromForm = formData.get("togetherApiKey") as string | null;
+      userDirective = formData.get("directive") as string | null;
+
       if (keyFromForm) {
         clientApiKey = keyFromForm;
         hasCustomKey = true;
@@ -146,6 +150,7 @@ export async function POST(req: NextRequest) {
       const body = await req.json().catch(() => ({}));
       const preset = body.preset || "standard";
       requestedPreset = preset;
+      userDirective = body.directive || null;
       if (body.togetherApiKey) {
         clientApiKey = body.togetherApiKey;
         hasCustomKey = true;
@@ -168,7 +173,7 @@ export async function POST(req: NextRequest) {
     const cacheKey = computeContentHash(
       originalBuffer,
       revisedBuffer,
-      clientApiKey,
+      clientApiKey + (userDirective || ""),
     );
     if (contentCache.has(cacheKey)) {
       const cached = contentCache.get(cacheKey);
@@ -196,6 +201,25 @@ export async function POST(req: NextRequest) {
       docRevised,
       clientApiKey,
     );
+
+    if (userDirective) {
+      const summaryString = JSON.stringify({
+        verdict: report.verdictTitle,
+        summary: report.summary,
+        keyRisks: report.keyRisks,
+        netVariance: report.netFinancialDelta,
+        arithmeticErrors: report.arithmeticErrorsCount,
+      }, null, 2);
+      
+      const response = await evaluateExecutiveDirectiveWithTogetherAI(
+        summaryString,
+        userDirective,
+        clientApiKey,
+      );
+      if (response) {
+        report.executiveDirectiveResponse = response;
+      }
+    }
 
     const totalDuration = Date.now() - startTime;
     report.telemetry.latencyMs = totalDuration;

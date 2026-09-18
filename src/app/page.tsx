@@ -215,6 +215,9 @@ export default function Home() {
       if (storedApiKey) {
         formData.append("togetherApiKey", storedApiKey);
       }
+      if (executiveDirective) {
+        formData.append("directive", executiveDirective);
+      }
 
       const headers: Record<string, string> = {};
       if (storedApiKey) {
@@ -433,6 +436,7 @@ export default function Home() {
                   >
                     <ExecutiveSummaryCard
                       report={report}
+                      directive={executiveDirective}
                       onOpenClarification={() => setShowClarification(true)}
                     />
                   </motion.div>
